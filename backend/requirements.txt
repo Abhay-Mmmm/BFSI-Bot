@@ -1,0 +1,34 @@
+# Requirements for PRIMUM AI Sales Orchestration Platform
+
+# FastAPI and ASGI
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Agent Orchestration
+crewai==0.28.8
+langgraph==0.0.61
+langchain==0.1.16
+langchain-openai==0.1.3
+langchain-community==0.0.32
+langchain-groq==1.1.0
+
+# Vector Database and RAG
+chromadb==0.5.4
+sentence-transformers==2.6.1
+
+# Data Processing
+pandas==2.1.4
+numpy==1.26.3
+pydantic==2.5.2
+
+# PDF Generation
+reportlab==4.0.7
+
+# Utilities
+python-dotenv==1.0.0
+tiktoken==0.5.2
+aiofiles==23.2.1
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
