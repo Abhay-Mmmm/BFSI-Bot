@@ -1,7 +1,6 @@
 # Master Orchestrator Agent for PRIMUM AI Sales Orchestration Platform
 
-from crewai import Agent
-from langchain_groq import ChatGroq
+from crewai import Agent, LLM
 from typing import Dict, Any
 import os
 from dotenv import load_dotenv
@@ -12,8 +11,8 @@ class MasterOrchestratorAgent:
     """Master Orchestrator Agent that controls flow state of every conversation"""
 
     def __init__(self):
-        self.llm = ChatGroq(
-            model=os.getenv("GROQ_MODEL", "llama3-70b-8192"),
+        self.llm = LLM(
+            model="groq/" + os.getenv("GROQ_MODEL", "llama3-70b-8192"),
             temperature=0.1,
             api_key=os.getenv("GROQ_API_KEY")
         )

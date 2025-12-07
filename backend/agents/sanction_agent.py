@@ -1,15 +1,12 @@
 # Sanction Letter Agent for PRIMUM AI Sales Orchestration Platform
 
-from crewai import Agent, Task
-from langchain_groq import ChatGroq
-from langchain.tools import tool
+from crewai import Agent, Task, LLM
+from crewai.tools import tool
 from typing import Dict, Any
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
-
-from langchain.tools import tool
 
 # Define tools for the sanction agent
 @tool("PDF Generation")
@@ -100,8 +97,8 @@ class SanctionLetterAgent:
     """Sanction Letter Generator Agent"""
 
     def __init__(self):
-        self.llm = ChatGroq(
-            model=os.getenv("GROQ_MODEL", "llama3-70b-8192"),
+        self.llm = LLM(
+            model="groq/" + os.getenv("GROQ_MODEL", "llama3-70b-8192"),
             temperature=0.1,  # Lower temperature for accurate document generation
             api_key=os.getenv("GROQ_API_KEY")
         )

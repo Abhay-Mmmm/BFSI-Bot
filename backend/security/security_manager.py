@@ -5,7 +5,7 @@ import hashlib
 import hmac
 import secrets
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import re
 import logging
 from functools import wraps

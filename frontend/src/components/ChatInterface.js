@@ -138,9 +138,9 @@ const ChatInterface = () => {
   };
 
   return (
-    <div className="app">
+    <div className="app-container">
       <Sidebar />
-      <main className="main-content">
+      <div className="main-content">
         <div className="chat-container">
           <ChatWindow
             messages={messages}
@@ -166,33 +166,16 @@ const ChatInterface = () => {
           </div>
         </div>
 
-        <div className="dashboard">
-          <div className="dashboard-section">
-            <h3>Loan Status</h3>
-            <LoanStatus status={loanStatus} />
-          </div>
-
-          <div className="dashboard-section">
-            <h3>EMI Calculator</h3>
+        {/* Right Panel for Dynamic Content */}
+        {(loanStatus || documents.length > 0 || emiData || sanctionLetter) && (
+          <div className="info-panel">
+            {loanStatus && <LoanStatus status={loanStatus} />}
+            {documents.length > 0 && <DocumentUpload documents={documents} conversationId={conversationId} />}
             {emiData && <EMIChart data={emiData} />}
+            {sanctionLetter && <SanctionLetter data={sanctionLetter} />}
           </div>
-
-          <div className="dashboard-section">
-            <h3>Document Upload</h3>
-            <DocumentUpload
-              documents={documents}
-              onUpload={(doc) => setDocuments([...documents, doc])}
-            />
-          </div>
-
-          {sanctionLetter && (
-            <div className="dashboard-section">
-              <h3>Sanction Letter</h3>
-              <SanctionLetter letter={sanctionLetter} />
-            </div>
-          )}
-        </div>
-      </main>
+        )}
+      </div>
       <div ref={messagesEndRef} />
     </div>
   );

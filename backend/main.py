@@ -48,6 +48,35 @@ credit_api = CreditBureauAPI()
 crm = CRMIntegration()
 loan_booking_engine = LoanBookingEngine()
 security_manager = SecurityManager()
+
+class ModelSettings(BaseModel):
+    model: str
+    api_key: str = None
+
+@app.post("/settings/model")
+async def update_model_settings(settings: ModelSettings):
+    """Update the Groq model used by agents"""
+    try:
+        # Update environment variable for future initializations
+        os.environ["GROQ_MODEL"] = settings.model
+        if settings.api_key:
+            os.environ["GROQ_API_KEY"] = settings.api_key
+            
+        # Re-initialize agents with new model
+        # Note: In a production app, this should be handled more gracefully
+        # For this hackathon, we'll just recreate the factory and agents
+        global agent_factory, all_agents, orchestrator_agent
+        
+        # We need to reload the AgentFactory to pick up new env vars if it reads them in __init__
+        # But since we updated os.environ, let's just recreate the agents
+        agent_factory = AgentFactory()
+        all_agents = agent_factory.create_all_agents()
+        orchestrator_agent = all_agents['orchestrator']
+        
+        return {"status": "success", "message": f"Model updated to {settings.model}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 role_manager = RoleManager()
 
 # Initialize conversation engine with all components

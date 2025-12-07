@@ -1,15 +1,12 @@
 # Sales Agent for PRIMUM AI Sales Orchestration Platform
 
-from crewai import Agent, Task
-from langchain_groq import ChatGroq
-from langchain.tools import tool
+from crewai import Agent, Task, LLM
+from crewai.tools import tool
 from typing import Dict, Any
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
-
-from langchain.tools import tool
 
 # Define tools for the sales agent
 @tool("Knowledge Base Search")
@@ -25,11 +22,12 @@ class SalesAgent:
     """Sales Agent for conversational persuasion and requirement gathering"""
 
     def __init__(self):
-        self.llm = ChatGroq(
-            model=os.getenv("GROQ_MODEL", "llama3-70b-8192"),
+        self.llm = LLM(
+            model="groq/" + os.getenv("GROQ_MODEL", "llama3-70b-8192"),
             temperature=0.7,  # Higher temperature for more conversational responses
             api_key=os.getenv("GROQ_API_KEY")
         )
+
 
         self.agent = self._create_agent()
 

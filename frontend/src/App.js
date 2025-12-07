@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import './App.css';
 import Dashboard from './components/Dashboard';
 import ChatInterface from './components/ChatInterface';
+import Settings from './components/Settings';
+import TeamDashboard from './components/TeamDashboard';
 import { NotificationProvider } from './components/NotificationProvider';
 
 function App() {
@@ -16,7 +18,8 @@ function App() {
             <Route path="/conversations" element={<ChatInterface />} />
             <Route path="/leads" element={<Dashboard />} />
             <Route path="/analytics" element={<Dashboard />} />
-            <Route path="/settings" element={<Dashboard />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/team" element={<TeamDashboard />} />
           </Routes>
         </div>
       </Router>

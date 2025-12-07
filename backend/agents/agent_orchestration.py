@@ -1,9 +1,8 @@
 # Agent Orchestration System for PRIMUM AI Sales Orchestration Platform
 # Uses CrewAI for coordinating multiple AI agents
 
-from crewai import Agent, Task, Crew
-from langchain.tools import tool
-from langchain_groq import ChatGroq
+from crewai import Agent, Task, Crew, LLM
+from crewai.tools import tool
 from typing import Dict, Any
 import os
 from dotenv import load_dotenv
@@ -53,9 +52,8 @@ class AgentOrchestrationSystem:
 
     def __init__(self):
         # Initialize the LLM
-        self.llm = ChatGroq(
-            model=os.getenv("GROQ_MODEL", "llama3-70b-8192"),
-            temperature=0.1,
+        self.llm = LLM(
+            model="groq/" + os.getenv("GROQ_MODEL", "llama3-70b-8192"),
             api_key=os.getenv("GROQ_API_KEY")
         )
         
