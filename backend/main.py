@@ -1,12 +1,16 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import uuid
 from datetime import datetime
 import asyncio
+import tempfile
+import shutil
+from pathlib import Path
 
 # Load environment variables
 load_dotenv()
@@ -102,6 +106,7 @@ class Conversation(BaseModel):
 class QueryRequest(BaseModel):
     query: str
     conversation_id: str = None
+    uploaded_documents: Optional[List[Dict[str, Any]]] = None
 
 class CustomerData(BaseModel):
     name: str
@@ -138,10 +143,23 @@ def start_conversation() -> Dict[str, Any]:
 def process_query(request: QueryRequest) -> Dict[str, Any]:
     """Process a query and return the AI response"""
     try:
+        # Add uploaded documents context to the query if available
+        enhanced_message = request.query
+        if request.uploaded_documents and len(request.uploaded_documents) > 0:
+            doc_context = "\\n\\n[Uploaded Documents: "
+            doc_context += ", ".join([doc.get('filename', 'Unknown') for doc in request.uploaded_documents])
+            doc_context += "]"
+            enhanced_message = request.query + doc_context
+        
         result = conversation_engine.process_message(
             conversation_id=request.conversation_id or conversation_engine.start_conversation(),
-            message=request.query
+            message=enhanced_message
         )
+        
+        # Include document info in response
+        if request.uploaded_documents:
+            result['uploaded_documents'] = request.uploaded_documents
+            
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing query: {str(e)}")
@@ -205,6 +223,67 @@ def create_lead(customer_data: CustomerData) -> Dict[str, Any]:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating lead: {str(e)}")
 
+# Create uploads directory if it doesn't exist
+UPLOAD_DIR = Path("./uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+@app.post("/documents/upload")
+async def upload_document(
+    file: UploadFile = File(...),
+    conversation_id: Optional[str] = None,
+    document_type: Optional[str] = None
+) -> Dict[str, Any]:
+    """Upload a document (salary slip, ID proof, bank statement, etc.)"""
+    try:
+        # Validate file type
+        allowed_extensions = {'.pdf', '.jpg', '.jpeg', '.png'}
+        file_ext = Path(file.filename).suffix.lower()
+        
+        if file_ext not in allowed_extensions:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"File type {file_ext} not allowed. Only PDF, JPG, PNG accepted."
+            )
+        
+        # Validate file size (10MB max)
+        max_size = 10 * 1024 * 1024  # 10MB
+        file_content = await file.read()
+        if len(file_content) > max_size:
+            raise HTTPException(status_code=400, detail="File size exceeds 10MB limit")
+        
+        # Generate unique filename
+        file_id = str(uuid.uuid4())
+        safe_filename = f"{file_id}_{file.filename}"
+        file_path = UPLOAD_DIR / safe_filename
+        
+        # Save file
+        with open(file_path, "wb") as f:
+            f.write(file_content)
+        
+        # Store document metadata
+        document_metadata = {
+            "id": file_id,
+            "filename": file.filename,
+            "stored_filename": safe_filename,
+            "file_type": file_ext,
+            "file_size": len(file_content),
+            "document_type": document_type or "general",
+            "conversation_id": conversation_id,
+            "uploaded_at": datetime.now().isoformat(),
+            "download_url": f"/documents/download/{file_id}"
+        }
+        
+        return {
+            "status": "success",
+            "message": "Document uploaded successfully",
+            "document": document_metadata
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error uploading document: {str(e)}")
+
 @app.post("/documents/generate/sanction")
 def generate_sanction_letter(request: SanctionRequest) -> Dict[str, str]:
     """Generate a sanction letter"""
@@ -237,20 +316,38 @@ def generate_sanction_letter(request: SanctionRequest) -> Dict[str, str]:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating sanction letter: {str(e)}")
 
-@app.get("/documents/download/{filename}")
-def download_document(filename: str):
-    """Download a generated document"""
+@app.get("/documents/download/{file_id}")
+def download_document(file_id: str):
+    """Download a document by file ID"""
     try:
-        import os
-        from fastapi.responses import FileResponse
-
-        temp_dir = tempfile.gettempdir()
-        filepath = os.path.join(temp_dir, filename)
-
-        if os.path.exists(filepath):
-            return FileResponse(filepath, media_type='application/pdf', filename=filename)
-        else:
+        # Search for file in uploads directory
+        matching_files = list(UPLOAD_DIR.glob(f"{file_id}_*"))
+        
+        if not matching_files:
+            # Also check temp directory for sanction letters
+            temp_dir = Path(tempfile.gettempdir())
+            matching_files = list(temp_dir.glob(f"sanction_{file_id}.pdf"))
+        
+        if not matching_files:
             raise HTTPException(status_code=404, detail="Document not found")
+        
+        filepath = matching_files[0]
+        
+        # Determine media type based on extension
+        media_type = "application/pdf"
+        if filepath.suffix.lower() in ['.jpg', '.jpeg']:
+            media_type = "image/jpeg"
+        elif filepath.suffix.lower() == '.png':
+            media_type = "image/png"
+        
+        return FileResponse(
+            filepath, 
+            media_type=media_type, 
+            filename=filepath.name
+        )
+        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error downloading document: {str(e)}")
 

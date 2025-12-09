@@ -1,32 +1,72 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 
-const DocumentUpload = ({ documents, onUpload }) => {
+const DocumentUpload = ({ documents, onUpload, conversationId }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState('');
 
-  const handleFileUpload = (event) => {
+  const handleFileUpload = async (event) => {
     const file = event.target.files[0];
-    if (file) {
-      setIsUploading(true);
-      setUploadStatus('Uploading...');
+    if (!file) return;
+    
+    // Validate file size
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      setUploadStatus('Error: File size exceeds 10MB limit');
+      setTimeout(() => setUploadStatus(''), 3000);
+      return;
+    }
+    
+    // Validate file type
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedTypes.includes(file.type)) {
+      setUploadStatus('Error: Only PDF, JPG, and PNG files are allowed');
+      setTimeout(() => setUploadStatus(''), 3000);
+      return;
+    }
 
-      // Simulate upload process
-      setTimeout(() => {
+    setIsUploading(true);
+    setUploadStatus('Uploading...');
+
+    try {
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('file', file);
+      if (conversationId) {
+        formData.append('conversation_id', conversationId);
+      }
+      
+      // Upload to backend
+      const response = await axios.post(
+        'http://localhost:8000/documents/upload',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      if (response.data.status === 'success') {
         const document = {
-          id: Date.now(),
-          name: file.name,
+          id: response.data.document.id,
+          name: response.data.document.filename,
           type: file.type,
-          size: file.size,
-          uploadedAt: new Date().toLocaleString()
+          size: response.data.document.file_size,
+          uploadedAt: new Date().toLocaleString(),
+          downloadUrl: response.data.document.download_url
         };
         
         onUpload(document);
-        setIsUploading(false);
         setUploadStatus('Upload successful!');
-        
-        // Clear status after 3 seconds
-        setTimeout(() => setUploadStatus(''), 3000);
-      }, 1500);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      setUploadStatus(`Upload failed: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setIsUploading(false);
+      // Clear status after 3 seconds
+      setTimeout(() => setUploadStatus(''), 3000);
     }
   };
 

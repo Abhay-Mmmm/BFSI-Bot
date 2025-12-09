@@ -1,0 +1,24 @@
+# Minimal Requirements - Install Core Packages First
+
+# Step 1: Core Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-dotenv==1.0.0
+
+# Step 2: Data Processing
+pandas==2.1.4
+numpy==1.26.3
+pydantic==2.5.2
+
+# Step 3: PDF Generation
+reportlab==4.0.7
+
+# Step 4: Basic AI Dependencies
+langchain==0.1.0
+langchain-groq==0.0.1
+
+# Step 5: Vector Database (Simplified)
+chromadb==0.4.24
+
+# Step 6: Utilities
+aiofiles==23.2.1
