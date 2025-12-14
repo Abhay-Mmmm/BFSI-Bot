@@ -1,4 +1,5 @@
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
 
 const ChatWindow = ({ messages, isLoading, loanStatus, messagesEndRef }) => {
   return (
@@ -9,42 +10,20 @@ const ChatWindow = ({ messages, isLoading, loanStatus, messagesEndRef }) => {
             key={message.id} 
             className={`message ${message.role}`}
           >
-            <div className="message-content" style={{ whiteSpace: 'pre-line' }}>
-              {message.content}
+            <div className="message-content markdown-content">
+              <ReactMarkdown>{message.content}</ReactMarkdown>
               {message.verification_display && (
-                <div style={{
-                  marginTop: '15px',
-                  padding: '15px',
-                  backgroundColor: '#e8f5e9',
-                  border: '2px solid #4caf50',
-                  borderRadius: '8px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}>
-                  <div style={{
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    color: '#2e7d32',
-                    marginBottom: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}>
-                    ✅ {message.verification_display.title}
+                <div className="verification-card">
+                  <div className="verification-header">
+                    <span>✅</span> {message.verification_display.title}
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div className="verification-body">
                     {message.verification_display.items.map((item, idx) => (
-                      <div key={idx} style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        padding: '8px 12px',
-                        backgroundColor: 'white',
-                        borderRadius: '6px',
-                        fontSize: '14px'
-                      }}>
-                        <span style={{ fontWeight: '500', color: '#555' }}>
+                      <div key={idx} className="verification-item">
+                        <span className="verification-label">
                           {item.icon} {item.label}
                         </span>
-                        <span style={{ fontWeight: 'bold', color: '#1976d2' }}>
+                        <span className="verification-value">
                           {item.value}
                         </span>
                       </div>

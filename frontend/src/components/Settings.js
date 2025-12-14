@@ -44,66 +44,78 @@ const Settings = () => {
       <Sidebar />
       <div className="main-content-dashboard">
         <div className="dashboard-header">
-          <h2>1. Settings</h2>
+          <div>
+            <h2>System Settings</h2>
+            <p className="caption">Configure your AI banking assistant parameters</p>
+          </div>
         </div>
 
-        <div className="settings-container" style={{ background: 'white', padding: '30px', borderRadius: '8px', maxWidth: '800px' }}>
-          <h3>Model Configuration</h3>
-          <p style={{ color: '#666', marginBottom: '20px' }}>Configure the AI model used for the sales orchestration agents.</p>
-          
-          <div className="form-group" style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Groq Model</label>
-            <select 
-              value={currentModel} 
-              onChange={(e) => setCurrentModel(e.target.value)}
-              style={{ 
-                width: '100%', 
-                padding: '10px', 
-                borderRadius: '4px', 
-                border: '1px solid #ddd',
-                fontSize: '16px'
-              }}
-            >
-              {models.map(model => (
-                <option key={model.id} value={model.id}>{model.name}</option>
-              ))}
-            </select>
+        <div className="settings-container">
+          <div className="settings-card card">
+            <h3 className="header-3">AI Model Configuration</h3>
+            <div className="settings-section">
+              <label className="body-small" htmlFor="model-select">Select AI Model</label>
+              <select
+                id="model-select"
+                className="input-field"
+                value={currentModel}
+                onChange={(e) => setCurrentModel(e.target.value)}
+              >
+                {models.map(model => (
+                  <option key={model.id} value={model.id}>{model.name}</option>
+                ))}
+              </select>
+              <p className="caption">Choose the AI model that best suits your banking operations needs.</p>
+            </div>
+
+            <div className="settings-section">
+              <label className="body-small" htmlFor="api-key">API Key (Optional)</label>
+              <input
+                type="password"
+                id="api-key"
+                className="input-field"
+                placeholder="Enter your custom API key"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+              />
+              <p className="caption">Provide a custom API key to override the default configuration.</p>
+            </div>
+
+            <div className="settings-actions">
+              <button
+                className="button button-primary"
+                onClick={handleSave}
+                disabled={isLoading}
+              >
+                {isLoading ? 'Saving...' : 'Save Settings'}
+              </button>
+            </div>
           </div>
 
-          <div className="form-group" style={{ marginBottom: '30px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Groq API Key (Optional)</label>
-            <input 
-              type="password" 
-              value={apiKey} 
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Enter new API key to override..."
-              style={{ 
-                width: '100%', 
-                padding: '10px', 
-                borderRadius: '4px', 
-                border: '1px solid #ddd',
-                fontSize: '16px'
-              }}
-            />
-            <small style={{ color: '#888', marginTop: '5px', display: 'block' }}>Leave blank to use the default API key from environment variables.</small>
-          </div>
+          <div className="settings-card card">
+            <h3 className="header-3">Security Settings</h3>
+            <div className="settings-section">
+              <div className="toggle-field">
+                <label className="body-small">Enable Data Encryption</label>
+                <div className="toggle-switch">
+                  <input type="checkbox" id="encryption-toggle" defaultChecked />
+                  <label htmlFor="encryption-toggle">Toggle</label>
+                </div>
+              </div>
+              <p className="caption">Encrypt all customer data and communications automatically.</p>
+            </div>
 
-          <button 
-            onClick={handleSave}
-            disabled={isLoading}
-            style={{
-              backgroundColor: '#00bfa5',
-              color: 'white',
-              border: 'none',
-              padding: '12px 24px',
-              borderRadius: '4px',
-              fontSize: '16px',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              opacity: isLoading ? 0.7 : 1
-            }}
-          >
-            {isLoading ? 'Saving...' : 'Save Configuration'}
-          </button>
+            <div className="settings-section">
+              <div className="toggle-field">
+                <label className="body-small">Enable Audit Logging</label>
+                <div className="toggle-switch">
+                  <input type="checkbox" id="audit-toggle" defaultChecked />
+                  <label htmlFor="audit-toggle">Toggle</label>
+                </div>
+              </div>
+              <p className="caption">Maintain detailed logs of all customer interactions for compliance.</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

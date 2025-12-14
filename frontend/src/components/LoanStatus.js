@@ -1,4 +1,14 @@
 import React, { useState } from 'react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
 
 const LoanStatus = ({ status }) => {
   const [viewMode, setViewMode] = useState('quick'); // 'quick' or 'detailed'
@@ -6,16 +16,6 @@ const LoanStatus = ({ status }) => {
   if (!status) {
     return <div className="loan-status">No loan application data available</div>;
   }
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'approved': return '#10b981';
-      case 'conditional': return '#f59e0b';
-      case 'rejected': return '#ef4444';
-      case 'under_review': return '#3b82f6';
-      default: return '#6b7280';
-    }
-  };
 
   // Calculate breakdown values
   const loanAmount = status.loan_amount || 0;
@@ -28,6 +28,178 @@ const LoanStatus = ({ status }) => {
   const processingFee = Math.round(loanAmount * 0.005); // 0.5%
   const gst = Math.round(processingFee * 0.18); // 18% GST
   const totalCost = totalPayable + processingFee + gst;
+
+  // Check if loan is sanctioned
+  const isSanctioned = status.decision === 'approved' || status.sanction_complete || status.sanction_letter_generated;
+
+  // Generate sanction letter PDF
+  const downloadSanctionLetter = () => {
+    const today = new Date();
+    const formattedDate = today.toLocaleDateString('en-IN', { 
+      day: '2-digit', 
+      month: 'long', 
+      year: 'numeric' 
+    });
+    const referenceNo = `PRIMUM/${today.getFullYear()}/${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+    const letterContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Loan Sanction Letter - PRIMUM</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333; line-height: 1.6; }
+    .header { text-align: center; border-bottom: 3px solid #0a3d62; padding-bottom: 20px; margin-bottom: 30px; }
+    .logo { font-size: 28px; font-weight: bold; color: #0a3d62; }
+    .logo span { color: #1b98e0; }
+    .subtitle { color: #666; font-size: 12px; letter-spacing: 2px; margin-top: 5px; }
+    .ref-section { display: flex; justify-content: space-between; margin-bottom: 30px; font-size: 14px; }
+    .title { text-align: center; font-size: 20px; color: #0a3d62; margin-bottom: 30px; text-transform: uppercase; letter-spacing: 1px; }
+    .greeting { margin-bottom: 20px; }
+    .content { margin-bottom: 25px; text-align: justify; }
+    .details-table { width: 100%; border-collapse: collapse; margin: 25px 0; }
+    .details-table th, .details-table td { padding: 12px 15px; text-align: left; border: 1px solid #ddd; }
+    .details-table th { background: #0a3d62; color: white; width: 40%; }
+    .details-table td { background: #f9f9f9; }
+    .details-table tr:nth-child(even) td { background: #fff; }
+    .highlight-row td { background: #e8f4fd !important; font-weight: bold; }
+    .terms { margin: 25px 0; padding: 20px; background: #f5f7fa; border-radius: 8px; }
+    .terms h4 { color: #0a3d62; margin-bottom: 15px; }
+    .terms ul { margin-left: 20px; }
+    .terms li { margin-bottom: 8px; font-size: 13px; }
+    .signature-section { margin-top: 50px; display: flex; justify-content: space-between; }
+    .signature-box { text-align: center; }
+    .signature-line { border-top: 1px solid #333; width: 200px; margin-top: 60px; padding-top: 10px; }
+    .footer { margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee; text-align: center; font-size: 11px; color: #666; }
+    .stamp { color: #2e7d32; font-weight: bold; font-size: 18px; margin-top: 10px; }
+    @media print { body { padding: 20px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">PRIMUM<span>AI</span></div>
+    <div class="subtitle">SMART BANKING • PERSONAL LOANS</div>
+  </div>
+  
+  <div class="ref-section">
+    <div><strong>Reference No:</strong> ${referenceNo}</div>
+    <div><strong>Date:</strong> ${formattedDate}</div>
+  </div>
+  
+  <div class="title">📋 Loan Sanction Letter</div>
+  
+  <div class="greeting">
+    <p>Dear Valued Customer,</p>
+  </div>
+  
+  <div class="content">
+    <p>We are pleased to inform you that your Personal Loan application has been <strong style="color: #2e7d32;">APPROVED</strong>. 
+    Based on our assessment of your profile and creditworthiness, we are sanctioning a loan as per the details mentioned below.</p>
+  </div>
+  
+  <table class="details-table">
+    <tr>
+      <th>Sanctioned Loan Amount</th>
+      <td>₹${loanAmount.toLocaleString('en-IN')}</td>
+    </tr>
+    <tr>
+      <th>Interest Rate (per annum)</th>
+      <td>${interestRate}% p.a.</td>
+    </tr>
+    <tr>
+      <th>Loan Tenure</th>
+      <td>${tenureMonths} Months</td>
+    </tr>
+    <tr class="highlight-row">
+      <th>Monthly EMI</th>
+      <td>₹${emi.toLocaleString('en-IN')}</td>
+    </tr>
+    <tr>
+      <th>Processing Fee</th>
+      <td>₹${processingFee.toLocaleString('en-IN')} + GST</td>
+    </tr>
+    <tr>
+      <th>Total Interest Payable</th>
+      <td>₹${totalInterest.toLocaleString('en-IN')}</td>
+    </tr>
+    <tr>
+      <th>Total Amount Payable</th>
+      <td>₹${totalCost.toLocaleString('en-IN')}</td>
+    </tr>
+    <tr>
+      <th>EMI Start Date</th>
+      <td>${new Date(today.getFullYear(), today.getMonth() + 1, 5).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</td>
+    </tr>
+  </table>
+  
+  <div class="terms">
+    <h4>Terms & Conditions:</h4>
+    <ul>
+      <li>This sanction is valid for 30 days from the date of issue.</li>
+      <li>Loan disbursement is subject to completion of documentation and verification.</li>
+      <li>EMI will be deducted from your registered bank account on the 5th of every month.</li>
+      <li>Prepayment is allowed after 6 EMIs without any charges.</li>
+      <li>Late payment will attract a penalty of 2% per month on the overdue amount.</li>
+      <li>This offer is non-transferable and subject to our standard terms and conditions.</li>
+    </ul>
+  </div>
+  
+  <div class="content">
+    <p>Please visit your nearest branch or complete the e-signing process online to proceed with the disbursement. 
+    For any queries, contact our customer support at <strong>1800-XXX-XXXX</strong> or email us at <strong>support@primum.ai</strong>.</p>
+  </div>
+  
+  <div class="signature-section">
+    <div class="signature-box">
+      <div class="signature-line">Customer Signature</div>
+    </div>
+    <div class="signature-box">
+      <div class="stamp">✓ APPROVED</div>
+      <div class="signature-line">Authorized Signatory<br/><small>PRIMUM AI Banking</small></div>
+    </div>
+  </div>
+  
+  <div class="footer">
+    <p>This is a system-generated document and does not require a physical signature.</p>
+    <p>PRIMUM AI Banking | CIN: U65100MH2024PTC123456 | RBI Reg. No: B-XX.XXXXX</p>
+  </div>
+</body>
+</html>`;
+
+    // Open new window and print
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(letterContent);
+    printWindow.document.close();
+    
+    // Auto-trigger print dialog after a short delay
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  };
+
+  // Generate chart data for first 12 months
+  const generateChartData = () => {
+    const chartData = [];
+    let balance = loanAmount;
+    const monthlyRate = interestRate / 100 / 12;
+    
+    for (let month = 1; month <= 12; month++) {
+      const interestPaid = Math.round(balance * monthlyRate);
+      const principalPaid = Math.round(emi - interestPaid);
+      balance = balance - principalPaid;
+      
+      chartData.push({
+        month: month.toString(),
+        principal: principalPaid,
+        interest: interestPaid,
+        emi: emi
+      });
+    }
+    
+    return chartData;
+  };
 
   // Generate amortization schedule for detailed view
   const generateAmortization = () => {
@@ -56,165 +228,200 @@ const LoanStatus = ({ status }) => {
     return schedule;
   };
 
+  const chartData = generateChartData();
+
   return (
-    <div className="loan-status" style={{ padding: '20px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
-      <div className="status-header" style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-          <h3 style={{ margin: 0, fontSize: '18px' }}>Loan Breakdown</h3>
-          <div className="status-badge" style={{ 
-            backgroundColor: getStatusColor(status.decision),
-            color: 'white',
-            padding: '4px 12px',
-            borderRadius: '12px',
-            fontSize: '12px',
-            textTransform: 'uppercase'
-          }}>
-            {status.decision || 'pending'}
-          </div>
-        </div>
-        
-        {/* View Toggle */}
-        <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-          <button
-            onClick={() => setViewMode('quick')}
-            style={{
-              flex: 1,
-              padding: '8px',
-              backgroundColor: viewMode === 'quick' ? '#00bfa5' : '#fff',
-              color: viewMode === 'quick' ? '#fff' : '#666',
-              border: '1px solid #ddd',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}
-          >
-            📊 Quick View
-          </button>
-          <button
-            onClick={() => setViewMode('detailed')}
-            style={{
-              flex: 1,
-              padding: '8px',
-              backgroundColor: viewMode === 'detailed' ? '#00bfa5' : '#fff',
-              color: viewMode === 'detailed' ? '#fff' : '#666',
-              border: '1px solid #ddd',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}
-          >
-            📝 Detailed View
-          </button>
-        </div>
+    <div className="loan-breakdown-panel">
+      {/* Header with Status Badge */}
+      <div className="breakdown-header">
+        <h3>Loan Breakdown</h3>
+        <span className={`status-badge ${status.decision === 'approved' ? 'approved' : status.decision === 'rejected' ? 'rejected' : 'pending'}`}>
+          {(status.decision || 'pending').toUpperCase()}
+        </span>
       </div>
-      
+
+      {/* Download Invoice Button - Show when sanctioned */}
+      {isSanctioned && (
+        <div className="sanction-download-section">
+          <button 
+            className="download-invoice-btn"
+            onClick={downloadSanctionLetter}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download Sanction Letter
+          </button>
+          <p className="download-hint">PDF will open in a new tab for printing/saving</p>
+        </div>
+      )}
+
+      {/* View Toggle */}
+      <div className="view-toggle">
+        <button
+          className={`toggle-btn ${viewMode === 'quick' ? 'active' : ''}`}
+          onClick={() => setViewMode('quick')}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="3" y="3" width="7" height="7"/>
+            <rect x="14" y="3" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/>
+            <rect x="3" y="14" width="7" height="7"/>
+          </svg>
+          Quick View
+        </button>
+        <button
+          className={`toggle-btn ${viewMode === 'detailed' ? 'active' : ''}`}
+          onClick={() => setViewMode('detailed')}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          Detailed View
+        </button>
+      </div>
+
       {viewMode === 'quick' ? (
-        /* Quick View */
-        <div className="quick-view">
-          <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '8px', marginBottom: '12px' }}>
-            <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>Monthly EMI</div>
-            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#00bfa5' }}>₹{emi.toLocaleString()}</div>
-            <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>for {tenureMonths} months</div>
+        <div className="quick-view-content">
+          {/* EMI Highlight */}
+          <div className="emi-highlight">
+            <span className="emi-label">Monthly EMI</span>
+            <span className="emi-value">₹{emi.toLocaleString('en-IN')}</span>
+            <span className="emi-tenure">for {tenureMonths} months</span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-            <div style={{ backgroundColor: '#fff', padding: '12px', borderRadius: '8px' }}>
-              <div style={{ fontSize: '11px', color: '#666' }}>Loan Amount</div>
-              <div style={{ fontSize: '18px', fontWeight: '600', marginTop: '4px' }}>₹{loanAmount.toLocaleString()}</div>
+          {/* Loan Details Row */}
+          <div className="loan-details-row">
+            <div className="detail-box">
+              <span className="detail-label">Loan Amount</span>
+              <span className="detail-value">₹{loanAmount.toLocaleString('en-IN')}</span>
             </div>
-            <div style={{ backgroundColor: '#fff', padding: '12px', borderRadius: '8px' }}>
-              <div style={{ fontSize: '11px', color: '#666' }}>Interest Rate</div>
-              <div style={{ fontSize: '18px', fontWeight: '600', marginTop: '4px' }}>{interestRate}%</div>
-            </div>
-          </div>
-
-          <div style={{ backgroundColor: '#fff5e6', padding: '12px', borderRadius: '8px', border: '1px solid #ffe4b3' }}>
-            <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Total Cost Breakdown</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <span style={{ fontSize: '13px' }}>Principal</span>
-              <span style={{ fontSize: '13px', fontWeight: '500' }}>₹{loanAmount.toLocaleString()}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <span style={{ fontSize: '13px' }}>Interest Payable</span>
-              <span style={{ fontSize: '13px', fontWeight: '500', color: '#ff9800' }}>₹{totalInterest.toLocaleString()}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <span style={{ fontSize: '13px' }}>Processing Fee</span>
-              <span style={{ fontSize: '13px', fontWeight: '500' }}>₹{processingFee.toLocaleString()}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid #ffe4b3' }}>
-              <span style={{ fontSize: '13px' }}>GST (18%)</span>
-              <span style={{ fontSize: '13px', fontWeight: '500' }}>₹{gst.toLocaleString()}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '14px', fontWeight: '600' }}>Total Payable</span>
-              <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#00bfa5' }}>₹{totalCost.toLocaleString()}</span>
+            <div className="detail-box">
+              <span className="detail-label">Interest Rate</span>
+              <span className="detail-value">{interestRate}%</span>
             </div>
           </div>
 
-          <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#e3f2fd', borderRadius: '8px', fontSize: '12px', color: '#1976d2' }}>
-            💡 <strong>Tip:</strong> Paying ₹500 extra monthly can save you ~₹{Math.round(totalInterest * 0.15).toLocaleString()} in interest
+          {/* Cost Breakdown Table */}
+          <div className="cost-breakdown">
+            <div className="breakdown-title">Total Cost Breakdown</div>
+            <div className="breakdown-row">
+              <span>Principal</span>
+              <span className="amount">₹{loanAmount.toLocaleString('en-IN')}</span>
+            </div>
+            <div className="breakdown-row highlight">
+              <span>Interest Payable</span>
+              <span className="amount interest">₹{totalInterest.toLocaleString('en-IN')}</span>
+            </div>
+            <div className="breakdown-row">
+              <span>Processing Fee</span>
+              <span className="amount">₹{processingFee.toLocaleString('en-IN')}</span>
+            </div>
+            <div className="breakdown-row">
+              <span>GST (18%)</span>
+              <span className="amount">₹{gst.toLocaleString('en-IN')}</span>
+            </div>
+            <div className="breakdown-row total">
+              <span>Total Payable</span>
+              <span className="amount total-amount">₹{totalCost.toLocaleString('en-IN')}</span>
+            </div>
+          </div>
+
+          {/* Tip Box */}
+          <div className="tip-box">
+            <span className="tip-icon">💡</span>
+            <span className="tip-text">
+              <strong>Tip:</strong> Paying ₹500 extra monthly can save you ~₹{Math.round(totalInterest * 0.15).toLocaleString('en-IN')} in interest
+            </span>
+          </div>
+
+          {/* EMI Chart */}
+          <div className="emi-chart-container">
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#fff', 
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '12px'
+                  }}
+                  formatter={(value) => `₹${value.toLocaleString('en-IN')}`}
+                />
+                <Legend wrapperStyle={{ fontSize: '12px' }} />
+                <Bar dataKey="principal" fill="#1b98e0" name="Principal" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="interest" fill="#2e7d32" name="Interest" radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="chart-footer">
+              <span>Expected monthly EMI: ₹{emi.toLocaleString('en-IN')}</span>
+              <span>Showing first 12 months breakdown</span>
+            </div>
           </div>
         </div>
       ) : (
         /* Detailed View */
-        <div className="detailed-view">
+        <div className="detailed-view-content">
           {/* Cost Summary */}
-          <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
-            <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#666' }}>Cost Summary</h4>
-            <table style={{ width: '100%', fontSize: '13px' }}>
+          <div className="cost-summary-section">
+            <h4>Cost Summary</h4>
+            <table className="summary-table">
               <tbody>
-                <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
-                  <td style={{ padding: '8px 0', color: '#666' }}>Loan Amount (Principal)</td>
-                  <td style={{ textAlign: 'right', fontWeight: '600' }}>₹{loanAmount.toLocaleString()}</td>
-                </tr>
-                <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
-                  <td style={{ padding: '8px 0', color: '#666' }}>Total Interest ({interestRate}% for {tenureMonths}mo)</td>
-                  <td style={{ textAlign: 'right', fontWeight: '600', color: '#ff9800' }}>₹{totalInterest.toLocaleString()}</td>
-                </tr>
-                <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
-                  <td style={{ padding: '8px 0', color: '#666' }}>
-                    Processing Fee (0.5%)
-                    <div style={{ fontSize: '11px', color: '#999' }}>One-time bank charge</div>
-                  </td>
-                  <td style={{ textAlign: 'right', fontWeight: '600' }}>₹{processingFee.toLocaleString()}</td>
-                </tr>
-                <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
-                  <td style={{ padding: '8px 0', color: '#666' }}>GST on Processing Fee (18%)</td>
-                  <td style={{ textAlign: 'right', fontWeight: '600' }}>₹{gst.toLocaleString()}</td>
+                <tr>
+                  <td>Loan Amount (Principal)</td>
+                  <td>₹{loanAmount.toLocaleString('en-IN')}</td>
                 </tr>
                 <tr>
-                  <td style={{ padding: '12px 0 0 0', fontWeight: 'bold', fontSize: '15px' }}>Total Amount Payable</td>
-                  <td style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '16px', color: '#00bfa5', paddingTop: '12px' }}>₹{totalCost.toLocaleString()}</td>
+                  <td>Total Interest ({interestRate}% for {tenureMonths} months)</td>
+                  <td className="highlight">₹{totalInterest.toLocaleString('en-IN')}</td>
+                </tr>
+                <tr>
+                  <td>
+                    Processing Fee (0.5%)
+                    <small>One-time bank charge</small>
+                  </td>
+                  <td>₹{processingFee.toLocaleString('en-IN')}</td>
+                </tr>
+                <tr>
+                  <td>GST on Processing Fee (18%)</td>
+                  <td>₹{gst.toLocaleString('en-IN')}</td>
+                </tr>
+                <tr className="total-row">
+                  <td><strong>Total Amount Payable</strong></td>
+                  <td><strong>₹{totalCost.toLocaleString('en-IN')}</strong></td>
                 </tr>
               </tbody>
             </table>
           </div>
 
           {/* Amortization Schedule */}
-          <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
-            <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#666' }}>EMI Breakdown Over Time</h4>
-            <div style={{ fontSize: '12px', color: '#999', marginBottom: '12px' }}>
-              See how your EMI is split between principal and interest
-            </div>
-            <table style={{ width: '100%', fontSize: '12px' }}>
+          <div className="amortization-section">
+            <h4>EMI Breakdown Over Time</h4>
+            <p className="section-desc">See how your EMI is split between principal and interest</p>
+            <table className="amortization-table">
               <thead>
-                <tr style={{ backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-                  <th style={{ padding: '8px', textAlign: 'left', color: '#666' }}>Month</th>
-                  <th style={{ padding: '8px', textAlign: 'right', color: '#666' }}>Principal</th>
-                  <th style={{ padding: '8px', textAlign: 'right', color: '#666' }}>Interest</th>
-                  <th style={{ padding: '8px', textAlign: 'right', color: '#666' }}>Balance</th>
+                <tr>
+                  <th>Month</th>
+                  <th>Principal</th>
+                  <th>Interest</th>
+                  <th>Balance</th>
                 </tr>
               </thead>
               <tbody>
                 {generateAmortization().map((row, idx) => (
-                  <tr key={idx} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ padding: '8px' }}>{row.month}</td>
-                    <td style={{ padding: '8px', textAlign: 'right', color: '#00bfa5', fontWeight: '500' }}>₹{row.principal.toLocaleString()}</td>
-                    <td style={{ padding: '8px', textAlign: 'right', color: '#ff9800', fontWeight: '500' }}>₹{row.interest.toLocaleString()}</td>
-                    <td style={{ padding: '8px', textAlign: 'right' }}>₹{row.balance.toLocaleString()}</td>
+                  <tr key={idx}>
+                    <td>{row.month}</td>
+                    <td className="principal">₹{row.principal.toLocaleString('en-IN')}</td>
+                    <td className="interest">₹{row.interest.toLocaleString('en-IN')}</td>
+                    <td>₹{row.balance.toLocaleString('en-IN')}</td>
                   </tr>
                 ))}
               </tbody>
@@ -222,11 +429,13 @@ const LoanStatus = ({ status }) => {
           </div>
 
           {/* Explanation */}
-          <div style={{ backgroundColor: '#f0f7ff', padding: '14px', borderRadius: '8px', fontSize: '13px', lineHeight: '1.6', color: '#1976d2' }}>
-            <strong>📝 What This Means:</strong><br/>
-            You borrowed <strong>₹{loanAmount.toLocaleString()}</strong> and will repay over <strong>{tenureMonths} months</strong> with EMIs of <strong>₹{emi.toLocaleString()}</strong>. 
-            Across the loan period, you'll pay <strong>₹{totalInterest.toLocaleString()}</strong> as interest. 
-            Initially, most of your EMI covers interest, but gradually more goes toward the principal.
+          <div className="explanation-box">
+            <strong>📝 What This Means:</strong>
+            <p>
+              You borrowed <strong>₹{loanAmount.toLocaleString('en-IN')}</strong> and will repay over <strong>{tenureMonths} months</strong> with EMIs of <strong>₹{emi.toLocaleString('en-IN')}</strong>.
+              Across the loan period, you'll pay <strong>₹{totalInterest.toLocaleString('en-IN')}</strong> as interest.
+              Initially, most of your EMI covers interest, but gradually more goes toward the principal.
+            </p>
           </div>
         </div>
       )}

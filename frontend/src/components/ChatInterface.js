@@ -30,7 +30,7 @@ const ChatInterface = () => {
     console.log('New Chat button clicked!');
     try {
       console.log('Starting new conversation...');
-      
+
       // Clear everything first
       setMessages([]);
       setDocuments([]);
@@ -39,7 +39,7 @@ const ChatInterface = () => {
       setSanctionLetter(null);
       setSuggestions([]);
       localStorage.removeItem('currentConversation');
-      
+
       // Then start new conversation with increased timeout
       console.log('Calling /conversation/start...');
       const response = await axios.post('http://localhost:8000/conversation/start', {}, {
@@ -76,23 +76,13 @@ const ChatInterface = () => {
     }
   }, []);
 
-  // Load conversation from localStorage on mount
+  // Start fresh conversation on every page load
   useEffect(() => {
-    const savedConversation = localStorage.getItem('currentConversation');
-    if (savedConversation) {
-      const conversation = JSON.parse(savedConversation);
-      setConversationId(conversation.conversationId);
-      // Convert timestamp strings back to Date objects
-      const messagesWithDates = (conversation.messages || []).map(msg => ({
-        ...msg,
-        timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
-      }));
-      setMessages(messagesWithDates);
-      setDocuments(conversation.documents || []);
-      setLoanStatus(conversation.loanStatus || null);
-      setEmiData(conversation.emiData || null);
-    } else if (isInitialMount.current) {
-      // Start new conversation with greeting only on initial mount
+    // Clear any saved conversation
+    localStorage.removeItem('currentConversation');
+    
+    // Start new conversation on mount
+    if (isInitialMount.current) {
       isInitialMount.current = false;
       startNewConversation();
     }
@@ -185,138 +175,81 @@ const ChatInterface = () => {
       }
       
       const response = await axios.post('http://localhost:8000/conversation/query', requestData, {
-        signal: abortControllerRef.current.signal
+        signal: abortControllerRef.current.signal,
+        timeout: 120000 // 2 minute timeout
       });
+      
+      console.log('Response from backend:', response.data);
 
-      console.log('📦 Full response from backend:', response.data);
-      console.log('🔍 auto_progress:', response.data.auto_progress);
-      console.log('⏰ auto_progress_delay:', response.data.auto_progress_delay);
-      console.log('📄 Current sanctionLetter state:', sanctionLetter);
-
-      const botMessage = {
+      // Create assistant message
+      const assistantMessage = {
         id: Date.now() + 1,
         role: 'assistant',
         content: response.data.response,
-        timestamp: new Date(),
-        stage: response.data.stage,
-        actions: response.data.actions,
-        verification_display: response.data.verification_display
+        timestamp: new Date()
       };
 
-      setMessages(prev => [...prev, botMessage]);
+      // Check for loan status in response (can come as loan_status or loan_application)
+      if (response.data.loan_status) {
+        console.log('Setting loan status from loan_status:', response.data.loan_status);
+        setLoanStatus(response.data.loan_status);
+      } else if (response.data.loan_application && Object.keys(response.data.loan_application).length > 0) {
+        // Map loan_application to loan_status format
+        const loanApp = response.data.loan_application;
+        console.log('Loan application data received:', loanApp);
+        if (loanApp.loan_amount || loanApp.salary) {
+          const mappedStatus = {
+            loan_amount: loanApp.loan_amount,
+            salary: loanApp.salary,
+            interest_rate: loanApp.interest_rate || 10.5,
+            tenure_months: loanApp.tenure_months || 60,
+            emi_amount: loanApp.emi_amount,
+            decision: loanApp.decision || response.data.stage,
+            risk_category: loanApp.risk_category,
+            employment_status: loanApp.employment_status,
+            city: loanApp.city,
+            sanction_complete: loanApp.sanction_complete,
+            sanction_letter_generated: loanApp.sanction_letter_generated
+          };
+          console.log('Setting loan status from loan_application:', mappedStatus);
+          setLoanStatus(mappedStatus);
+        }
+      } else {
+        console.log('No loan data in response. Full response:', response.data);
+      }
 
-      // Show suggestions if provided by backend
-      if (response.data.suggestions && response.data.suggestions.length > 0) {
+      // Check for EMI data in response
+      if (response.data.emi_data) {
+        setEmiData(response.data.emi_data);
+      }
+
+      // Check for sanction letter in response
+      if (response.data.sanction_letter) {
+        setSanctionLetter(response.data.sanction_letter);
+      }
+
+      // Check for suggestions in response
+      if (response.data.suggestions && Array.isArray(response.data.suggestions)) {
         setSuggestions(response.data.suggestions);
       }
 
-      // Update loan status if available
-      if (response.data.loan_application) {
-        setLoanStatus(response.data.loan_application);
-      }
-
-      // Don't disable input - let user ask questions after closure
-
-      // Update EMI data if available
-      if (response.data.loan_application?.emi_amount && response.data.loan_application?.loan_amount) {
-        const emi = response.data.loan_application.emi_amount;
-        const loanAmount = response.data.loan_application.loan_amount;
-        const tenure = response.data.loan_application.tenure_months || 60;
-
-        // Generate EMI data for chart
-        const emiChartData = Array.from({ length: Math.min(tenure, 12) }, (_, i) => ({
-          month: i + 1,
-          emi: emi,
-          principal: loanAmount / tenure,
-          interest: emi - (loanAmount / tenure)
-        }));
-
-        setEmiData(emiChartData);
-      }
-
-      // Handle auto-progression with delay
-      if (response.data.auto_progress && response.data.auto_progress_delay) {
-        const delay = response.data.auto_progress_delay * 1000; // Convert to ms
-        console.log(`🔄 AUTO-PROGRESS DETECTED`);
-        console.log(`⏳ Will auto-progress in ${response.data.auto_progress_delay} seconds...`);
-        
-        setTimeout(async () => {
-          console.log(`📤 Sending [AUTO_CONTINUE] to backend...`);
-          // Send a continuation signal to backend
-          try {
-            const progressResponse = await axios.post('http://localhost:8000/conversation/query', {
-              query: '[AUTO_CONTINUE]',
-              conversation_id: conversationId,
-            });
-
-            console.log(`✅ Auto-progress response received:`, progressResponse.data);
-
-            const autoMessage = {
-              id: Date.now() + 2,
-              role: 'assistant',
-              content: progressResponse.data.response,
-              timestamp: new Date(),
-              stage: progressResponse.data.stage,
-              actions: progressResponse.data.actions,
-              verification_display: progressResponse.data.verification_display
-            };
-
-            setMessages(prev => [...prev, autoMessage]);
-
-            // Update loan status from auto-progression
-            if (progressResponse.data.loan_application) {
-              setLoanStatus(progressResponse.data.loan_application);
-            }
-          } catch (error) {
-            console.error('❌ Error in auto-progression:', error);
-          }
-        }, delay);
-      }
-
-      // Handle sanction letter generation
-      console.log('🔍 Checking sanction letter flags:', {
-        show_button: response.data.show_sanction_letter_button,
-        ready: response.data.sanction_letter_ready,
-        loan_app: response.data.loan_application,
-        stage: response.data.stage
-      });
-      
-      // Check if sanction letter should be shown (at sanction stage or if flags are set)
-      const shouldShowSanction = response.data.show_sanction_letter_button || 
-                                 response.data.sanction_letter_ready ||
-                                 (response.data.stage === 'verification' && response.data.loan_application?.sanction_complete);
-      
-      if (shouldShowSanction && response.data.loan_application) {
-        console.log('✅ Setting sanction letter state');
-        // Generate sanction letter with actual loan data
-        const loanData = response.data.loan_application;
-        const newSanctionLetter = {
-          customerName: 'Applicant',
-          loanAmount: `₹${(loanData.loan_amount || 0).toLocaleString('en-IN')}`,
-          interestRate: `${loanData.interest_rate || 10.5}%`,
-          emi: `₹${(loanData.emi_amount || 0).toLocaleString('en-IN')}`,
-          tenure: `${loanData.tenure_months || 60} months`,
-          downloadUrl: '#'
-        };
-        console.log('📄 New sanction letter:', newSanctionLetter);
-        setSanctionLetter(newSanctionLetter);
-      }
+      console.log('Adding assistant message to chat:', assistantMessage);
+      setMessages(prev => [...prev, assistantMessage]);
 
     } catch (error) {
-      // Don't show error if request was aborted intentionally
-      if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
-        console.log('Request aborted by user');
-        return;
-      }
-      
       console.error('Error sending message:', error);
-      const errorMessage = {
-        id: Date.now() + 1,
-        role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      console.error('Error details:', error.response?.data);
+      
+      if (error.name !== 'AbortError') {
+        // Add error message to chat
+        const errorMessage = {
+          id: Date.now() + 1,
+          role: 'assistant',
+          content: '❌ Sorry, I encountered an issue processing your request. Please try again.',
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      }
     } finally {
       setIsLoading(false);
       abortControllerRef.current = null;
@@ -326,278 +259,163 @@ const ChatInterface = () => {
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      if (!isLoading && inputValue.trim()) {
+        handleSendMessage();
+      }
     }
   };
 
   const handleDocumentUpload = (document) => {
     setDocuments(prev => [...prev, document]);
-    // Notify user that document was uploaded
-    const docMessage = {
-      id: Date.now(),
-      role: 'assistant',
-      content: `✅ Document "${document.name}" uploaded successfully! I can now review this document for your loan application.`,
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev, docMessage]);
   };
+
+  const adjustTextareaHeight = () => {
+    const textarea = inputRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
+    }
+  };
+
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [inputValue]);
 
   return (
     <div className="app-container">
       <Sidebar onNewChat={startNewConversation} />
-      <div className="main-content">
+      <div className="main-content-dashboard">
         <div className="chat-container">
-          <div className="chat-header" style={{ padding: '10px 20px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ margin: 0 }}>Loan Application Chat</h3>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button 
+          {/* Chat Header */}
+          <div className="chat-header d-flex justify-between align-center p-md">
+            <div>
+              <h3 className="header-3 m-0">Loan Application Chat</h3>
+              <p className="caption text-tertiary">AI-powered loan processing assistant</p>
+            </div>
+            <div className="d-flex gap-md">
+              <button
+                className={`button ${showUpload ? 'button-primary' : 'button-secondary'}`}
                 onClick={() => setShowUpload(!showUpload)}
-                style={{ 
-                  padding: '8px 16px', 
-                  backgroundColor: '#00bfa5', 
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
               >
-                📎 Upload Documents
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                {showUpload ? 'Hide Uploads' : 'Upload Documents'}
               </button>
-              <button 
+              <button
+                className="button button-secondary d-flex align-center gap-sm"
                 onClick={startNewConversation}
-                style={{ 
-                  padding: '8px 16px', 
-                  backgroundColor: '#546e7a', 
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
               >
-                ➕ New Chat
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 20h9"/>
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                </svg>
+                New Chat
               </button>
-              {sanctionLetter && (
-                <button 
-                  onClick={() => setShowSanctionModal(true)}
-                  style={{ 
-                    padding: '8px 16px', 
-                    backgroundColor: '#4caf50', 
-                    color: 'white', 
-                    border: 'none', 
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontWeight: 'bold'
-                  }}
-                >
-                  📄 View Sanction Letter
-                </button>
-              )}
             </div>
           </div>
-          
-          {/* Sanction Letter Modal */}
-          {showSanctionModal && sanctionLetter && (
-            <div style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(0,0,0,0.7)',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              zIndex: 1000
-            }}>
-              <div style={{
-                backgroundColor: 'white',
-                padding: '40px',
-                borderRadius: '8px',
-                maxWidth: '600px',
-                width: '90%',
-                maxHeight: '80vh',
-                overflow: 'auto',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
-              }}>
-                <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-                  <h2 style={{ color: '#00bfa5', marginBottom: '10px' }}>PRIMUM LOAN SERVICES</h2>
-                  <h3 style={{ color: '#333', marginBottom: '5px' }}>LOAN SANCTION LETTER</h3>
-                  <p style={{ color: '#666', fontSize: '14px' }}>Date: {new Date().toLocaleDateString('en-IN')}</p>
-                </div>
-                
-                <div style={{ padding: '20px', backgroundColor: '#f5f5f5', borderRadius: '4px', marginBottom: '20px' }}>
-                  <p style={{ marginBottom: '10px' }}><strong>Customer Name:</strong> {sanctionLetter.customerName}</p>
-                  <hr style={{ margin: '15px 0', border: 'none', borderTop: '1px solid #ddd' }} />
-                  <p style={{ marginBottom: '10px' }}><strong>Sanctioned Loan Amount:</strong> {sanctionLetter.loanAmount}</p>
-                  <p style={{ marginBottom: '10px' }}><strong>Interest Rate:</strong> {sanctionLetter.interestRate} per annum</p>
-                  <p style={{ marginBottom: '10px' }}><strong>Monthly EMI:</strong> {sanctionLetter.emi}</p>
-                  <p style={{ marginBottom: '10px' }}><strong>Loan Tenure:</strong> {sanctionLetter.tenure}</p>
-                </div>
-                
-                <div style={{ padding: '15px', backgroundColor: '#e8f5e9', borderRadius: '4px', marginBottom: '20px' }}>
-                  <p style={{ fontSize: '14px', lineHeight: '1.6', margin: 0 }}>
-                    <strong>Terms & Conditions:</strong><br/>
-                    • This sanction is valid for 30 days from the date of issue<br/>
-                    • Please submit required documents within 7 working days<br/>
-                    • Processing fee: 2% of loan amount<br/>
-                    • Interest rate is subject to change as per RBI guidelines<br/>
-                    • Foreclosure allowed after 6 months with 2% penalty
-                  </p>
-                </div>
-                
-                <div style={{ textAlign: 'center', marginTop: '30px' }}>
-                  <button
-                    onClick={() => {
-                      // Generate PDF download
-                      const content = `
-PRIMUM LOAN SERVICES
-LOAN SANCTION LETTER
 
-Date: ${new Date().toLocaleDateString('en-IN')}
-
-Customer: ${sanctionLetter.customerName}
-Loan Amount: ${sanctionLetter.loanAmount}
-Interest Rate: ${sanctionLetter.interestRate}
-Monthly EMI: ${sanctionLetter.emi}
-Tenure: ${sanctionLetter.tenure}
-
-Your loan has been sanctioned!
-                      `.trim();
-                      
-                      const blob = new Blob([content], { type: 'text/plain' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = 'Sanction_Letter.txt';
-                      a.click();
-                      URL.revokeObjectURL(url);
-                    }}
-                    style={{
-                      padding: '10px 30px',
-                      backgroundColor: '#00bfa5',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      marginRight: '10px',
-                      fontSize: '16px'
-                    }}
-                  >
-                    📥 Download Letter
-                  </button>
-                  <button
-                    onClick={() => setShowSanctionModal(false)}
-                    style={{
-                      padding: '10px 30px',
-                      backgroundColor: '#666',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '16px'
-                    }}
-                  >
-                    Close
-                  </button>
+          {/* Main Chat Area */}
+          <div className="chat-main-area d-flex" style={{ height: 'calc(100vh - 180px)' }}>
+            {/* Left Chat Panel */}
+            <div className="chat-panel flex-1 d-flex flex-column">
+              <ChatWindow
+                messages={messages}
+                isLoading={isLoading}
+                loanStatus={loanStatus}
+                messagesEndRef={messagesEndRef}
+              />
+              <div className="input-area">
+                {suggestions.length > 0 && (
+                  <div className="suggestions-container">
+                    <div className="suggestions-label">💡 Suggestions:</div>
+                    <div className="suggestions-list d-flex flex-wrap gap-sm">
+                      {suggestions.map((suggestion, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleSuggestionClick(suggestion)}
+                          className="suggestion-chip"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <textarea
+                  ref={inputRef}
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Type your message here..."
+                  rows="1"
+                  disabled={isLoading}
+                  className="input-field"
+                />
+                <div className="d-flex">
+                  {isLoading ? (
+                    <button
+                      onClick={stopGeneration}
+                      className="button button-danger d-flex align-center gap-sm"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="6" y="6" width="12" height="12" rx="2"/>
+                      </svg>
+                      Stop
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleSendMessage}
+                      disabled={!inputValue.trim()}
+                      className="button button-primary d-flex align-center gap-sm"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"/>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                      </svg>
+                      Send
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
-          )}
-          
-          <ChatWindow
-            messages={messages}
-            isLoading={isLoading}
-            loanStatus={loanStatus}
-            messagesEndRef={messagesEndRef}
-          />
-          <div className="input-area">
-            {suggestions.length > 0 && (
-              <div style={{ 
-                padding: '10px', 
-                backgroundColor: '#f5f5f5', 
-                borderRadius: '8px', 
-                marginBottom: '10px',
-                border: '1px solid #ddd'
-              }}>
-                <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>💡 Did you mean:</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {suggestions.map((suggestion, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleSuggestionClick(suggestion)}
-                      style={{
-                        padding: '6px 12px',
-                        backgroundColor: '#fff',
-                        border: '1px solid #00bfa5',
-                        borderRadius: '16px',
-                        cursor: 'pointer',
-                        fontSize: '13px',
-                        color: '#00bfa5',
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.target.style.backgroundColor = '#00bfa5';
-                        e.target.style.color = '#fff';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.backgroundColor = '#fff';
-                        e.target.style.color = '#00bfa5';
-                      }}
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
+
+            {/* Right Panel - Only visible when there's data */}
+            {(showUpload || loanStatus || documents.length > 0) && (
+              <div className="info-panel">
+                {/* Show Document Upload when toggled */}
+                {showUpload && (
+                  <div className="mb-lg">
+                    <DocumentUpload 
+                      documents={documents} 
+                      onUpload={handleDocumentUpload} 
+                      conversationId={conversationId} 
+                    />
+                  </div>
+                )}
+                
+                {/* Show Loan Status when available */}
+                {loanStatus && (
+                  <LoanStatus status={loanStatus} />
+                )}
+                
+                {/* Show uploaded documents list */}
+                {documents.length > 0 && !showUpload && (
+                  <div className="documents-summary">
+                    <h4>Uploaded Documents ({documents.length})</h4>
+                    <ul>
+                      {documents.map((doc, idx) => (
+                        <li key={idx}>{doc.name}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
-            <textarea
-              ref={inputRef}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Type your message here..."
-              rows="3"
-              disabled={isLoading}
-            />
-            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-              {isLoading ? (
-                <button
-                  onClick={stopGeneration}
-                  className="send-button"
-                  style={{ backgroundColor: '#ff5252', flex: 1 }}
-                >
-                  ⏹ Stop
-                </button>
-              ) : (
-                <button
-                  onClick={handleSendMessage}
-                  disabled={!inputValue.trim()}
-                  className="send-button"
-                  style={{ flex: 1 }}
-                >
-                  Send
-                </button>
-              )}
-            </div>
           </div>
         </div>
-
-        {/* Right Panel for Dynamic Content */}
-        {(showUpload || loanStatus || documents.length > 0 || emiData || sanctionLetter) && (
-          <div className="info-panel">
-            {showUpload && (
-              <div style={{ marginBottom: '20px' }}>
-                <h4>Upload Documents</h4>
-                <DocumentUpload documents={documents} onUpload={handleDocumentUpload} conversationId={conversationId} />
-              </div>
-            )}
-            {loanStatus && loanStatus.loan_amount && loanStatus.salary && loanStatus.employment_status && loanStatus.city && (
-              <LoanStatus status={loanStatus} />
-            )}
-            {emiData && <EMIChart data={emiData} />}
-            {sanctionLetter && <SanctionLetter data={sanctionLetter} />}
-          </div>
-        )}
       </div>
     </div>
   );

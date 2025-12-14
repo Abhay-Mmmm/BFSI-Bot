@@ -934,22 +934,24 @@ Have more specific questions about any part of the process?"""
     
     def _handle_engagement(self, message: str) -> Dict[str, Any]:
         """Handle engagement stage"""
-        response = """👋 Welcome to PRIMUM Loan Services!
+        response = """👋 **Welcome to PRIMUM Loan Services!**
 
-I'm your AI assistant, here to help you with Personal Loan Applications.
+I'm your AI assistant, here to help you with **Personal Loan Applications**.
 
+---
 
-📌 I'll need a few details to get started:
+📌 **I'll need a few details to get started:**
 
-• 💰 Loan Amount: How much do you wish to borrow?
-• 💵 Monthly Income: Your current salary
-• 💼 Employment Type: Salaried / Contract / Self-Employed
-• 🏙️ City: Where do you currently live?
+- 💰 **Loan Amount:** How much do you wish to borrow?
+- 💵 **Monthly Income:** Your current salary
+- 💼 **Employment Type:** Salaried / Contract / Self-Employed
+- 🏙️ **City:** Where do you currently live?
 
+---
 
-✨ Quick Tip: You can provide all details in one message for faster processing!
+✨ **Quick Tip:** You can provide all details in one message for faster processing!
 
-Example: "1.5 lakhs, 60k per month, salaried, Trivandrum"
+> Example: *"1.5 lakhs, 60k per month, salaried, Trivandrum"*
 
 How can I help you today?"""
         return {
