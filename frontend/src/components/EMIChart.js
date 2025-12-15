@@ -15,17 +15,24 @@ const EMIChart = ({ data }) => {
     return <div className="emi-chart">No EMI data available</div>;
   }
 
+  const tooltipStyle = {
+    backgroundColor: '#1F2937',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    borderRadius: '8px',
+    color: '#F3F4F6'
+  };
+
   return (
     <div className="emi-chart">
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="month" />
-          <YAxis />
-          <Tooltip />
-          <Legend />
-          <Bar dataKey="principal" fill="#3b82f6" name="Principal" />
-          <Bar dataKey="interest" fill="#10b981" name="Interest" />
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.08)" />
+          <XAxis dataKey="month" tick={{ fill: '#9CA3AF', fontSize: 11 }} />
+          <YAxis tick={{ fill: '#9CA3AF', fontSize: 11 }} />
+          <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#F3F4F6' }} />
+          <Legend wrapperStyle={{ color: '#9CA3AF' }} />
+          <Bar dataKey="principal" fill="#3B82F6" name="Principal" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="interest" fill="#10B981" name="Interest" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
       <div className="chart-info">

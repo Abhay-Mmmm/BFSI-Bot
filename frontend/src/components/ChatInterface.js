@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import '../App.css';
+import './DarkTheme.css';
 import ChatWindow from './ChatWindow';
 import Sidebar from './Sidebar';
 import LoanStatus from './LoanStatus';
@@ -282,7 +283,7 @@ const ChatInterface = () => {
   }, [inputValue]);
 
   return (
-    <div className="app-container">
+    <div className="app-container dark-theme">
       <Sidebar onNewChat={startNewConversation} />
       <div className="main-content-dashboard">
         <div className="chat-container">

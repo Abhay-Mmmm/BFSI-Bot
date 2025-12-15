@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import { useNotification } from './NotificationProvider';
 import './styles.css';
+import './DarkTheme.css';
 import axios from 'axios';
 
 const Settings = () => {
@@ -40,24 +41,24 @@ const Settings = () => {
   };
 
   return (
-    <div className="app-container">
+    <div className="app-container dark-theme">
       <Sidebar />
       <div className="main-content-dashboard">
         <div className="dashboard-header">
           <div>
             <h2>System Settings</h2>
-            <p className="caption">Configure your AI banking assistant parameters</p>
+            <p className="caption text-tertiary">Configure your AI banking assistant parameters</p>
           </div>
         </div>
 
         <div className="settings-container">
-          <div className="settings-card card">
+          <div className="settings-card">
             <h3 className="header-3">AI Model Configuration</h3>
+            <p className="settings-subtitle">Select your preferred language model for AI-powered banking assistance</p>
             <div className="settings-section">
-              <label className="body-small" htmlFor="model-select">Select AI Model</label>
+              <label htmlFor="model-select">Select AI Model</label>
               <select
                 id="model-select"
-                className="input-field"
                 value={currentModel}
                 onChange={(e) => setCurrentModel(e.target.value)}
               >
@@ -65,34 +66,29 @@ const Settings = () => {
                   <option key={model.id} value={model.id}>{model.name}</option>
                 ))}
               </select>
-              <p className="caption">Choose the AI model that best suits your banking operations needs.</p>
+              <p className="hint">Choose the AI model that best suits your banking operations needs.</p>
             </div>
 
             <div className="settings-section">
-              <label className="body-small" htmlFor="api-key">API Key (Optional)</label>
+              <label htmlFor="api-key">API Key (Optional)</label>
               <input
                 type="password"
                 id="api-key"
-                className="input-field"
                 placeholder="Enter your custom API key"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
               />
-              <p className="caption">Provide a custom API key to override the default configuration.</p>
+              <p className="hint">Provide a custom API key to override the default configuration.</p>
             </div>
 
-            <div className="settings-actions">
-              <button
-                className="button button-primary"
-                onClick={handleSave}
-                disabled={isLoading}
-              >
-                {isLoading ? 'Saving...' : 'Save Settings'}
-              </button>
-            </div>
+            <button
+              className="settings-save-btn"
+              onClick={handleSave}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Saving...' : 'Save Settings'}
+            </button>
           </div>
-
-
         </div>
       </div>
     </div>

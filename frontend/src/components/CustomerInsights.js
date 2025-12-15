@@ -18,7 +18,15 @@ const CustomerInsights = ({ data = [] }) => {
     { name: 'Other', value: 10 },
   ];
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+  // Dark theme colors matching the design system
+  const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+
+  const tooltipStyle = {
+    backgroundColor: '#1F2937',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    borderRadius: '8px',
+    color: '#F3F4F6'
+  };
 
   return (
     <div className="customer-insights">
@@ -36,14 +44,14 @@ const CustomerInsights = ({ data = [] }) => {
                 labelLine={false}
                 label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                 outerRadius={80}
-                fill="#8884d8"
+                fill="#8B5CF6"
                 dataKey="value"
               >
                 {demographicData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip contentStyle={tooltipStyle} />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -55,11 +63,11 @@ const CustomerInsights = ({ data = [] }) => {
               data={loanPurposeData}
               margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
             >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="value" fill="#8884d8" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.08)" />
+              <XAxis dataKey="name" tick={{ fill: '#9CA3AF', fontSize: 11 }} />
+              <YAxis tick={{ fill: '#9CA3AF', fontSize: 11 }} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar dataKey="value" fill="#3B82F6" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

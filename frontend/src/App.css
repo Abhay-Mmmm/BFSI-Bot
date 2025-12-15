@@ -510,6 +510,58 @@ html, body {
 .text-body { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
 .text-caption { font-size: 12px; color: var(--text-tertiary); }
 
+/* --- Common Components --- */
+
+/* Cards */
+.card {
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid #e2e8f0;
+  padding: var(--spacing-lg);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--spacing-lg);
+  height: 40px;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  outline: none;
+}
+
+.btn-primary {
+  background-color: var(--color-accent);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-accent-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary:disabled {
+  background-color: var(--text-tertiary);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Typography Utilities */
+.text-h1 { font-size: 24px; font-weight: 700; color: var(--text-primary); }
+.text-h2 { font-size: 20px; font-weight: 600; color: var(--text-primary); }
+.text-h3 { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+.text-body { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
+.text-caption { font-size: 12px; color: var(--text-tertiary); }
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

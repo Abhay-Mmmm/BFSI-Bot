@@ -344,21 +344,23 @@ const LoanStatus = ({ status }) => {
           <div className="emi-chart-container">
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} />
-                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.08)" />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3AF' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} />
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: '#fff', 
-                    border: '1px solid #e2e8f0',
+                    backgroundColor: '#1F2937', 
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
                     borderRadius: '8px',
-                    fontSize: '12px'
+                    fontSize: '12px',
+                    color: '#F3F4F6'
                   }}
+                  labelStyle={{ color: '#F3F4F6' }}
                   formatter={(value) => `₹${value.toLocaleString('en-IN')}`}
                 />
-                <Legend wrapperStyle={{ fontSize: '12px' }} />
-                <Bar dataKey="principal" fill="#1b98e0" name="Principal" radius={[2, 2, 0, 0]} />
-                <Bar dataKey="interest" fill="#2e7d32" name="Interest" radius={[2, 2, 0, 0]} />
+                <Legend wrapperStyle={{ fontSize: '12px', color: '#9CA3AF' }} />
+                <Bar dataKey="principal" fill="#3B82F6" name="Principal" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="interest" fill="#10B981" name="Interest" radius={[2, 2, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
             <div className="chart-footer">
