@@ -92,30 +92,7 @@ const Settings = () => {
             </div>
           </div>
 
-          <div className="settings-card card">
-            <h3 className="header-3">Security Settings</h3>
-            <div className="settings-section">
-              <div className="toggle-field">
-                <label className="body-small">Enable Data Encryption</label>
-                <div className="toggle-switch">
-                  <input type="checkbox" id="encryption-toggle" defaultChecked />
-                  <label htmlFor="encryption-toggle">Toggle</label>
-                </div>
-              </div>
-              <p className="caption">Encrypt all customer data and communications automatically.</p>
-            </div>
 
-            <div className="settings-section">
-              <div className="toggle-field">
-                <label className="body-small">Enable Audit Logging</label>
-                <div className="toggle-switch">
-                  <input type="checkbox" id="audit-toggle" defaultChecked />
-                  <label htmlFor="audit-toggle">Toggle</label>
-                </div>
-              </div>
-              <p className="caption">Maintain detailed logs of all customer interactions for compliance.</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>

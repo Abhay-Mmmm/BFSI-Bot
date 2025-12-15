@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const ChatWindow = ({ messages, isLoading, loanStatus, messagesEndRef }) => {
   return (
@@ -11,7 +12,7 @@ const ChatWindow = ({ messages, isLoading, loanStatus, messagesEndRef }) => {
             className={`message ${message.role}`}
           >
             <div className="message-content markdown-content">
-              <ReactMarkdown>{message.content}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
               {message.verification_display && (
                 <div className="verification-card">
                   <div className="verification-header">

@@ -24,9 +24,8 @@ const TeamDashboard = () => {
   return (
     <div className="app-container">
       <Sidebar />
-      <div className="main-content-dashboard">
-        <div className="dashboard-header">
-          <h2>5. Team Dashboard</h2>
+      <div className="main-content-dashboard team-dashboard-compact">
+        <div className="dashboard-header-compact">
           <div className="dashboard-filters">
             <div className="filter-item">
               <span>Team</span>
@@ -54,12 +53,12 @@ const TeamDashboard = () => {
           </div>
         </div>
 
-        <div className="bottom-row">
-          <div className="chart-section half-width">
+        <div className="bottom-row compact-row">
+          <div className="chart-section half-width compact-chart">
             <h4>Agent Performance (Sales Volume)</h4>
-            <div className="chart-container">
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={agentPerformance} layout="vertical" barSize={20}>
+            <div className="chart-container-compact">
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={agentPerformance} layout="vertical" barSize={16}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                   <XAxis type="number" hide />
                   <YAxis dataKey="name" type="category" width={60} axisLine={false} tickLine={false} />
@@ -74,17 +73,17 @@ const TeamDashboard = () => {
             </div>
           </div>
 
-          <div className="chart-section half-width">
+          <div className="chart-section half-width compact-chart">
             <h4>Team Status</h4>
-            <div className="chart-container" style={{ display: 'flex', justifyContent: 'center' }}>
-              <ResponsiveContainer width="100%" height={300}>
+            <div className="chart-container-compact" style={{ display: 'flex', justifyContent: 'center' }}>
+              <ResponsiveContainer width="100%" height={140}>
                 <PieChart>
                   <Pie
                     data={teamStatus}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
+                    innerRadius={40}
+                    outerRadius={55}
                     paddingAngle={5}
                     dataKey="value"
                   >
@@ -99,10 +98,10 @@ const TeamDashboard = () => {
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '6px' }}>
               {teamStatus.map((entry, index) => (
-                <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px' }}>
-                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: COLORS[index] }}></div>
+                <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: COLORS[index] }}></div>
                   {entry.name}: {entry.value}
                 </div>
               ))}
@@ -110,30 +109,30 @@ const TeamDashboard = () => {
           </div>
         </div>
 
-        <div className="chart-section full-width">
+        <div className="chart-section full-width compact-table">
           <h4>Detailed Agent Metrics</h4>
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '4px' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #eee', textAlign: 'left', color: '#546e7a' }}>
-                <th style={{ padding: '10px' }}>Agent Name</th>
-                <th style={{ padding: '10px' }}>Leads Processed</th>
-                <th style={{ padding: '10px' }}>Conversion Rate</th>
-                <th style={{ padding: '10px' }}>Total Sales</th>
-                <th style={{ padding: '10px' }}>Status</th>
+              <tr style={{ borderBottom: '1px solid #eee', textAlign: 'left', color: '#546e7a', fontSize: '13px' }}>
+                <th style={{ padding: '6px 10px' }}>Agent Name</th>
+                <th style={{ padding: '6px 10px' }}>Leads Processed</th>
+                <th style={{ padding: '6px 10px' }}>Conversion Rate</th>
+                <th style={{ padding: '6px 10px' }}>Total Sales</th>
+                <th style={{ padding: '6px 10px' }}>Status</th>
               </tr>
             </thead>
             <tbody>
               {agentPerformance.map((agent, index) => (
                 <tr key={index} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                  <td style={{ padding: '15px 10px', fontWeight: '500' }}>{agent.name}</td>
-                  <td style={{ padding: '15px 10px' }}>{agent.leads}</td>
-                  <td style={{ padding: '15px 10px' }}>{agent.conversion}%</td>
-                  <td style={{ padding: '15px 10px' }}>₹{agent.sales.toLocaleString()}</td>
-                  <td style={{ padding: '15px 10px' }}>
+                  <td style={{ padding: '8px 10px', fontWeight: '500', fontSize: '13px' }}>{agent.name}</td>
+                  <td style={{ padding: '8px 10px', fontSize: '13px' }}>{agent.leads}</td>
+                  <td style={{ padding: '8px 10px', fontSize: '13px' }}>{agent.conversion}%</td>
+                  <td style={{ padding: '8px 10px', fontSize: '13px' }}>₹{agent.sales.toLocaleString()}</td>
+                  <td style={{ padding: '8px 10px' }}>
                     <span style={{ 
-                      padding: '4px 8px', 
-                      borderRadius: '12px', 
-                      fontSize: '12px',
+                      padding: '3px 6px', 
+                      borderRadius: '10px', 
+                      fontSize: '11px',
                       backgroundColor: index < 3 ? '#e0f2f1' : '#fff3e0',
                       color: index < 3 ? '#00695c' : '#ef6c00'
                     }}>

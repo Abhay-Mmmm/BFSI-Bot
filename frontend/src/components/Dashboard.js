@@ -39,35 +39,17 @@ const Dashboard = () => {
   return (
     <div className="app-container">
       <Sidebar />
-      <div className="main-content-dashboard">
-        <div className="dashboard-header">
-          <div>
-            <h2>Banking Operations Dashboard</h2>
-            <p className="caption">Real-time loan processing and analytics</p>
-          </div>
+      <div className="main-content-dashboard dashboard-single-view">
+        <div className="dashboard-header-compact">
           <div className="dashboard-filters">
             <div className="filter-item">
-              <span>Branch</span>
-              <select>
-                <option>All Branches</option>
-                <option>Mumbai Central</option>
-                <option>New Delhi</option>
-                <option>Bangalore City</option>
-              </select>
-            </div>
-            <div className="filter-item">
-              <span>Time Period</span>
-              <select>
-                <option>This Year</option>
-                <option>Last 6 Months</option>
-                <option>Last 3 Months</option>
-                <option>This Month</option>
-              </select>
+              <span>Team</span>
+              <select><option>Sales Team A</option><option>Sales Team B</option></select>
             </div>
           </div>
         </div>
 
-        <div className="kpi-row">
+        <div className="kpi-row dashboard-kpi">
           <div className="kpi-card">
             <h3>2,850</h3>
             <p>Total Applications</p>
@@ -90,61 +72,55 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="chart-section full-width">
-          <h4>Loan Disbursement vs Target</h4>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={monthlyData} barSize={25}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                <YAxis axisLine={false} tickLine={false} tickFormatter={formatCurrency} />
-                <Tooltip formatter={(value) => [formatCurrency(value), 'Amount']} />
-                <Bar dataKey="loanAmount" fill={BLUE_COLOR} name="Disbursed" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="target" fill="#94a3b8" name="Target" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+        <div className="dashboard-charts-grid">
+          <div className="chart-section compact-chart-main">
+            <h4>Loan Disbursement vs Target</h4>
+            <div className="chart-container-sm">
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={monthlyData} barSize={14}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                  <YAxis axisLine={false} tickLine={false} tickFormatter={formatCurrency} tick={{ fontSize: 10 }} />
+                  <Tooltip formatter={(value) => [formatCurrency(value), 'Amount']} />
+                  <Bar dataKey="loanAmount" fill={BLUE_COLOR} name="Disbursed" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="target" fill="#94a3b8" name="Target" radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-        </div>
 
-        <div className="bottom-row">
-          <div className="chart-section half-width">
-            <div className="chart-header">
+          <div className="chart-section compact-chart-side">
+            <div className="chart-header-sm">
               <h4>Application Status</h4>
-              <div className="chart-legend">
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <div style={{ width: '12px', height: '12px', backgroundColor: '#94a3b8', borderRadius: '2px' }}></div>
-                  Applications
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <div style={{ width: '12px', height: '12px', backgroundColor: SUCCESS_COLOR, borderRadius: '2px' }}></div>
-                  Approved
-                </span>
+              <div className="chart-legend-sm">
+                <span><div style={{ width: '8px', height: '8px', backgroundColor: '#94a3b8', borderRadius: '2px', display: 'inline-block', marginRight: '4px' }}></div>Apps</span>
+                <span><div style={{ width: '8px', height: '8px', backgroundColor: SUCCESS_COLOR, borderRadius: '2px', display: 'inline-block', marginRight: '4px' }}></div>Approved</span>
               </div>
             </div>
-            <div className="chart-container">
-              <ResponsiveContainer width="100%" height={250}>
+            <div className="chart-container-sm">
+              <ResponsiveContainer width="100%" height={160}>
                 <LineChart data={monthlyData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
                   <Tooltip />
-                  <Line type="monotone" dataKey="applications" stroke="#94a3b8" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                  <Line type="monotone" dataKey="approved" stroke={SUCCESS_COLOR} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="applications" stroke="#94a3b8" strokeWidth={2} dot={{ r: 2 }} />
+                  <Line type="monotone" dataKey="approved" stroke={SUCCESS_COLOR} strokeWidth={2} dot={{ r: 2 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          <div className="chart-section half-width">
+          <div className="chart-section compact-chart-side">
             <h4>Top Loan Officers</h4>
-            <div className="chart-container">
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={agentData} layout="vertical" barSize={20}>
+            <div className="chart-container-sm">
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={agentData} layout="vertical" barSize={12}>
                   <CartesianGrid horizontal={false} />
-                  <XAxis type="number" axisLine={false} tickLine={false} tickFormatter={formatCurrency} />
-                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={120} />
+                  <XAxis type="number" axisLine={false} tickLine={false} tickFormatter={formatCurrency} tick={{ fontSize: 10 }} />
+                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={70} tick={{ fontSize: 10 }} />
                   <Tooltip formatter={(value) => [formatCurrency(value), 'Amount']} />
-                  <Bar dataKey="loanAmount" fill={TEAL_COLOR} radius={[0, 4, 4, 0]}>
+                  <Bar dataKey="loanAmount" fill={TEAL_COLOR} radius={[0, 3, 3, 0]}>
                     {agentData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={TEAL_COLOR} />
                     ))}

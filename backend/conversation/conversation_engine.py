@@ -977,29 +977,31 @@ How can I help you today?"""
         
         # Build detailed response based on what we collected
         if has_loan_amount and has_salary and has_employment and has_city:
-            # All requirements collected - confirm and automatically move to verification
-            response = f"""Perfect! ✅ Let me confirm the details I've collected:
+            # All requirements collected - confirm and ASK before proceeding
+            response = f"""✅ **Perfect! I've collected all your details:**
 
-💰 **Loan Amount**: ₹{loan_app['loan_amount']:,}
-💵 **Monthly Salary**: ₹{loan_app['salary']:,}
-💼 **Employment**: {loan_app['employment_status'].replace('_', ' ').title()}
-🏙️ **City**: {loan_app['city']}
+| Detail | Value |
+|--------|-------|
+| 💰 Loan Amount | ₹{loan_app['loan_amount']:,} |
+| 💵 Monthly Salary | ₹{loan_app['salary']:,} |
+| 💼 Employment | {loan_app['employment_status'].replace('_', ' ').title()} |
+| 🏙️ City | {loan_app['city']} |
 
-🔍 **Next Step:** I'll now verify your eligibility and check your credit profile. This will just take a moment..."""
+---
+
+🔍 **Next Step:** I can now verify your eligibility and check your credit profile.
+
+**Would you like me to proceed with verification?** *(Type "yes" or "proceed" to continue)*"""
             
-            # Automatically advance to verification stage and get verification results
-            conversation["stage"] = ConversationStage.VERIFICATION
+            # Update stage but DON'T auto-advance - wait for user confirmation
+            conversation["stage"] = ConversationStage.NEEDS_ASSESSMENT
+            conversation["awaiting_verification_confirmation"] = True
             self.conversations[conversation_id] = conversation
             
-            # Get verification results immediately
-            verification_response = self._handle_verification(conversation_id)
-            
-            # Combine confirmation with verification results
             return {
-                "response": response + "\n\n" + verification_response["response"],
-                "next_action": verification_response.get("next_action", "proceed_to_underwriting"),
-                "actions": ["confirm_details", "start_verification"] + verification_response.get("actions", []),
-                "verification_result": verification_response.get("verification_result")
+                "response": response,
+                "next_action": "await_verification_confirmation",
+                "actions": ["confirm_details"]
             }
         else:
             # Build specific request for missing information
@@ -1249,6 +1251,77 @@ How can I help you today?"""
                     "next_action": "continue",
                     "actions": []
                 }
+            
+            # ============================================================
+            # CHECK FOR AWAITING CONFIRMATIONS BEFORE CALLING LLM
+            # This ensures the state machine works step-by-step
+            # ============================================================
+            message_lower = message.lower().strip()
+            is_yes = any(word in message_lower for word in ['yes', 'yeah', 'yep', 'ok', 'okay', 'sure', 'proceed', 'go ahead', 'continue', 'do it', 'please'])
+            is_no = message_lower in ['no', 'nope', 'nah', 'cancel', 'stop']
+            
+            # Check for awaiting verification confirmation
+            if conversation.get("awaiting_verification_confirmation"):
+                print(f"🔄 Awaiting verification confirmation...")
+                if is_yes:
+                    print(f"✅ User confirmed - proceeding to verification")
+                    conversation.pop("awaiting_verification_confirmation", None)
+                    conversation["stage"] = ConversationStage.VERIFICATION
+                    self.conversations[conversation_id] = conversation
+                    return self._handle_verification(conversation_id)
+                elif is_no:
+                    print(f"❌ User declined - asking what to change")
+                    conversation.pop("awaiting_verification_confirmation", None)
+                    self.conversations[conversation_id] = conversation
+                    return {
+                        "response": "No problem! Would you like to change any of the details before I verify? Just let me know what you'd like to modify.",
+                        "next_action": "await_modification",
+                        "actions": []
+                    }
+                # If neither yes nor no, check if they're providing new details
+                # Fall through to LLM analysis
+            
+            # Check for awaiting underwriting confirmation
+            if conversation.get("awaiting_underwriting_confirmation"):
+                print(f"🔄 Awaiting underwriting confirmation...")
+                if is_yes:
+                    print(f"✅ User confirmed - proceeding to underwriting")
+                    conversation.pop("awaiting_underwriting_confirmation", None)
+                    conversation["stage"] = ConversationStage.UNDERWRITING
+                    self.conversations[conversation_id] = conversation
+                    return self._handle_underwriting(conversation_id)
+                elif is_no:
+                    print(f"❌ User declined underwriting")
+                    conversation.pop("awaiting_underwriting_confirmation", None)
+                    self.conversations[conversation_id] = conversation
+                    return {
+                        "response": "I understand. Is there anything you'd like to clarify or change before we proceed with the loan decision?",
+                        "next_action": "await_user_input",
+                        "actions": []
+                    }
+            
+            # Check for awaiting sanction confirmation
+            if conversation.get("awaiting_sanction_confirmation"):
+                print(f"🔄 Awaiting sanction confirmation...")
+                if is_yes:
+                    print(f"✅ User confirmed - proceeding to sanction")
+                    conversation.pop("awaiting_sanction_confirmation", None)
+                    conversation["stage"] = ConversationStage.SANCTION
+                    self.conversations[conversation_id] = conversation
+                    return self._handle_sanction(conversation_id)
+                elif is_no:
+                    print(f"❌ User declined sanction")
+                    conversation.pop("awaiting_sanction_confirmation", None)
+                    self.conversations[conversation_id] = conversation
+                    return {
+                        "response": "No problem. Would you like to modify your loan details, or do you have any questions about the decision?",
+                        "next_action": "await_user_input",
+                        "actions": []
+                    }
+            
+            # ============================================================
+            # NO PENDING CONFIRMATIONS - USE LLM FOR INTENT DETECTION
+            # ============================================================
             
             # Get LLM analysis of user message
             analysis = self.llm_controller.analyze_user_message(message, conversation)
@@ -1541,11 +1614,15 @@ How can I help you today?"""
         
         # Check if verification already done
         if loan_app.get("verification_complete"):
-            # Already verified, move to underwriting automatically
-            return self._handle_underwriting(conversation_id)
+            # Already verified, ask if user wants to proceed to underwriting
+            return {
+                "response": "✅ Your verification is already complete. Would you like me to proceed with the loan decision?",
+                "next_action": "await_underwriting_confirmation",
+                "actions": []
+            }
         
-        # First time in verification - show verifying message and results immediately
-        response = "I'm now verifying your details with our system...\n\n"
+        # First time in verification - show verifying message and results
+        response = "🔍 **Verifying your details with our system...**\n\n"
         
         # Mock verification result (in real system, this would be async)
         verification_result = {
@@ -1561,13 +1638,24 @@ How can I help you today?"""
         loan_app.update(verification_result)
         loan_app["verification_complete"] = True
         conversation["loan_application"] = loan_app
+        conversation["awaiting_underwriting_confirmation"] = True
         self.conversations[conversation_id] = conversation
         
-        response += f"✅ **Verification Complete!**\n\n"
-        response += f"📊 Credit Score: {verification_result['credit_score']}\n"
-        response += f"✅ KYC Status: Verified\n"
-        response += f"✅ Salary: Verified\n"
-        response += f"💰 Eligible Loan Limit: ₹{verification_result['eligible_limit']:,}\n\n"
+        response += f"""✅ **Verification Complete!**
+
+| Check | Result |
+|-------|--------|
+| 📊 Credit Score | **{verification_result['credit_score']}** (Excellent) |
+| ✅ KYC Status | Verified |
+| ✅ Salary | Verified |
+| 💰 Eligible Limit | ₹{verification_result['eligible_limit']:,} |
+| 🛡️ Risk Level | {verification_result['risk_flag'].title()} |
+
+---
+
+🎉 **Great news!** Your profile looks strong.
+
+**Would you like me to proceed with the loan decision (underwriting)?** *(Type "yes" or "proceed" to continue)*"""
         
         # Format verification data for display in separate box
         verification_display = {
@@ -1582,23 +1670,12 @@ How can I help you today?"""
             ]
         }
         
-        # Auto-proceed to underwriting
-        response += "Your application looks great! Let me proceed with the underwriting process to finalize your loan approval.\n\n"
-        
-        # Immediately process underwriting
-        underwriting_result = self._handle_underwriting(conversation_id)
-        
-        # Combine verification and underwriting responses
-        response += "\n" + underwriting_result.get("response", "")
-        
         return {
             "response": response,
-            "next_action": "show_final_decision",
-            "actions": ["verify_credit", "verify_kyc", "calculate_eligibility", "underwrite", "sanction"],
+            "next_action": "await_underwriting_confirmation",
+            "actions": ["verify_credit", "verify_kyc", "calculate_eligibility"],
             "verification_result": verification_result,
-            "verification_display": verification_display,
-            "auto_progress": True,
-            "auto_progress_delay": 2.5
+            "verification_display": verification_display
         }
     
     def _handle_underwriting(self, conversation_id: str) -> Dict[str, Any]:
@@ -1609,39 +1686,47 @@ How can I help you today?"""
         # Apply business rules using rule engine
         rule_result = self.rule_engine.determine_approval_path(loan_app)
         
-        # Determine next step based on rule result
+        # Determine decision based on rule result
         if rule_result["path"] == "instant_approval":
-            response = "Great news! Your loan application has been approved instantly based on your strong credentials.\n\n"
+            decision_text = "🎉 **APPROVED!**"
+            decision_desc = "Your loan application has been **instantly approved** based on your strong credentials!"
             loan_app["decision"] = "approved"
             loan_app["reason"] = rule_result["reason"]
         elif rule_result["path"] == "conditional_approval":
-            response = "Your application qualifies for conditional approval. We'll need to review your salary slip to finalize the approval.\n\n"
+            decision_text = "✅ **CONDITIONALLY APPROVED**"
+            decision_desc = "Your application qualifies for conditional approval. We may need additional documents to finalize."
             loan_app["decision"] = "conditional"
             loan_app["reason"] = rule_result["reason"]
         else:
-            response = "We're processing your application and will verify a few more details before making a decision.\n\n"
+            decision_text = "📋 **UNDER REVIEW**"
+            decision_desc = "We're processing your application and will verify additional details before making a final decision."
             loan_app["decision"] = "under_review"
             loan_app["reason"] = rule_result["reason"]
         
         # Update conversation
         loan_app["underwriting_complete"] = True
         conversation["loan_application"] = loan_app
+        conversation["awaiting_sanction_confirmation"] = True
         self.conversations[conversation_id] = conversation
         
-        # Auto-proceed to sanction (simulate 2-3 sec processing)
-        response += "⏳ Preparing your loan sanction details...\n\n"
-        
-        # Get sanction details
-        sanction_result = self._handle_sanction(conversation_id)
-        response += sanction_result.get("response", "")
+        response = f"""📝 **Underwriting Decision**
+
+---
+
+## {decision_text}
+
+{decision_desc}
+
+**Reason:** {rule_result['reason']}
+
+---
+
+**Would you like me to generate your sanction letter?** *(Type "yes" or "proceed" to continue)*"""
         
         return {
             "response": response,
-            "next_action": "show_sanction_and_ask",
-            "actions": ["apply_business_rules", "calculate_risk", "make_decision", "generate_sanction"],
-            "sanction_letter_ready": True,
-            "auto_progress": True,
-            "auto_progress_delay": 2.5
+            "next_action": "await_sanction_confirmation",
+            "actions": ["apply_business_rules", "calculate_risk", "make_decision"]
         }
     
     def _handle_sanction(self, conversation_id: str) -> Dict[str, Any]:
