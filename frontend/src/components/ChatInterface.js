@@ -6,8 +6,6 @@ import ChatWindow from './ChatWindow';
 import Sidebar from './Sidebar';
 import LoanStatus from './LoanStatus';
 import DocumentUpload from './DocumentUpload';
-import EMIChart from './EMIChart';
-import SanctionLetter from './SanctionLetter';
 
 const ChatInterface = () => {
   const [conversationId, setConversationId] = useState(null);
