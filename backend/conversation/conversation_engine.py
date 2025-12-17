@@ -796,21 +796,30 @@ class ConversationEngine:
         hypothetical_emi = pending_adjustment["emi_amount"]
         interest_rate = pending_adjustment.get("interest_rate", 10.5)
         
-        # Calculate loan amount for default 60-month tenure
-        tenure = 60
+        # Keep loan amount same, calculate new tenure based on EMI
+        loan_amount = loan_app.get("loan_amount", 150000)
         r = interest_rate / 12 / 100
         
+        # Calculate tenure using EMI formula: tenure = log(EMI / (EMI - P*r)) / log(1+r)
+        import math
         if r > 0:
-            new_loan_amount = hypothetical_emi * (((1 + r) ** tenure) - 1) / (r * ((1 + r) ** tenure))
+            try:
+                tenure = math.log(hypothetical_emi / (hypothetical_emi - loan_amount * r)) / math.log(1 + r)
+                tenure = int(math.ceil(tenure))  # Round up to nearest month
+            except (ValueError, ZeroDivisionError):
+                # If EMI is too low or calculation fails, use default
+                tenure = 60
         else:
-            new_loan_amount = hypothetical_emi * tenure
+            tenure = int(loan_amount / hypothetical_emi)
         
-        new_loan_amount = int(new_loan_amount)
+        # Ensure tenure is reasonable (6 months to 10 years)
+        tenure = max(6, min(tenure, 120))
+        
         old_loan_amount = loan_app.get("loan_amount", 150000)
         old_emi = loan_app.get("emi_amount", 3224)
+        old_tenure = loan_app.get("tenure_months", 60)
         
-        # Update the loan application
-        loan_app["loan_amount"] = new_loan_amount
+        # Update the loan application - KEEP LOAN AMOUNT SAME, UPDATE TENURE
         loan_app["emi_amount"] = hypothetical_emi
         loan_app["tenure_months"] = tenure
         
@@ -829,16 +838,22 @@ class ConversationEngine:
         
         self.conversations[conversation_id] = conversation
         
-        response = f"""✅ **Loan Adjusted Successfully!**
+        # Calculate total payable and interest
+        total_payable = hypothetical_emi * tenure
+        total_interest = total_payable - loan_amount
+        
+        response = f"""✅ **EMI Adjusted Successfully!**
 
 📝 **Changes Made:**
-• 💰 Loan Amount: ₹{old_loan_amount:,} → **₹{new_loan_amount:,}**
 • 💳 Monthly EMI: ₹{old_emi:,.0f} → **₹{hypothetical_emi:,}**
-• 📅 Tenure: **{tenure} months (5 years)**
+• 📅 Tenure: {old_tenure} months → **{tenure} months ({tenure//12} years {tenure%12} months)**
+• 💰 Loan Amount: **₹{loan_amount:,}** (unchanged)
 • 💹 Interest Rate: **{interest_rate}% per annum**
 
-**Total amount to pay:** ₹{hypothetical_emi * tenure:,}
-**Total interest:** ₹{(hypothetical_emi * tenure) - new_loan_amount:,.0f}
+**Impact:**
+• Total amount to pay: ₹{total_payable:,}
+• Total interest: ₹{total_interest:,.0f}
+• **You'll save ₹{(old_emi * old_tenure) - total_payable:,.0f} by paying higher EMI!**
 
 🔄 Let me verify your updated details and process your application..."""
         
@@ -847,7 +862,7 @@ class ConversationEngine:
             "next_action": "verify_and_process",
             "actions": ["loan_adjusted", "start_verification"],
             "loan_application": loan_app,  # Include updated loan application
-            "emi_data": self._calculate_emi_breakdown(new_loan_amount, interest_rate, custom_emi=hypothetical_emi)
+            "emi_data": self._calculate_emi_breakdown(loan_amount, interest_rate, custom_emi=hypothetical_emi)
         }
     
     def _handle_explanation_question(self, conversation_id: str, explanation_query: Dict[str, Any]) -> Dict[str, Any]:
@@ -856,65 +871,68 @@ class ConversationEngine:
         loan_app = conversation.get("loan_application", {})
         
         if explanation_query["type"] == "hypothetical_emi":
-            # Calculate loan breakdown based on hypothetical EMI amount
+            # Calculate tenure based on hypothetical EMI amount for CURRENT loan amount
             hypothetical_emi = explanation_query["emi_amount"]
             interest_rate = loan_app.get("interest_rate", 10.5)
+            current_loan_amount = loan_app.get("loan_amount", 150000)
+            current_emi = loan_app.get("emi_amount", 3224)
             
-            # Calculate maximum loan amount for different tenures with this EMI
-            tenures = [12, 24, 36, 48, 60]
             r = interest_rate / 12 / 100
             
-            # Calculate loan amount for 60-month tenure (for EMI breakdown chart)
-            standard_tenure = 60
+            # Calculate tenure for hypothetical EMI with current loan amount
+            import math
             if r > 0:
-                standard_loan_amount = hypothetical_emi * (((1 + r) ** standard_tenure) - 1) / (r * ((1 + r) ** standard_tenure))
+                try:
+                    new_tenure = math.log(hypothetical_emi / (hypothetical_emi - current_loan_amount * r)) / math.log(1 + r)
+                    new_tenure = int(math.ceil(new_tenure))
+                except (ValueError, ZeroDivisionError):
+                    new_tenure = 60  # Default if calculation fails
             else:
-                standard_loan_amount = hypothetical_emi * standard_tenure
-            standard_loan_amount = int(standard_loan_amount)
+                new_tenure = int(current_loan_amount / hypothetical_emi)
             
-            response = f"""💰 **Loan Breakdown for ₹{hypothetical_emi:,} Monthly EMI:**
-
-If you pay ₹{hypothetical_emi:,} every month, here's how much you can borrow for different loan periods:
-
-"""
+            # Ensure tenure is reasonable
+            new_tenure = max(6, min(new_tenure, 120))
             
-            for tenure in tenures:
-                # Reverse EMI formula: P = EMI × ((1+r)^n - 1) / (r × (1+r)^n)
-                if r > 0:
-                    loan_amount = hypothetical_emi * (((1 + r) ** tenure) - 1) / (r * ((1 + r) ** tenure))
-                else:
-                    loan_amount = hypothetical_emi * tenure
-                
-                total_payment = hypothetical_emi * tenure
-                total_interest = total_payment - loan_amount
-                
-                years = tenure // 12
-                year_label = f"{years} year{'s' if years != 1 else ''}" if years > 0 else f"{tenure} months"
-                
-                response += f"""📅 **{tenure} months ({year_label})**
-   • You can borrow: ₹{loan_amount:,.0f}
-   • You'll pay in total: ₹{total_payment:,.0f}
-   • Interest amount: ₹{total_interest:,.0f}
-
-"""
+            total_payment = hypothetical_emi * new_tenure
+            total_interest = total_payment - current_loan_amount
+            current_total = current_emi * loan_app.get("tenure_months", 60)
+            savings = current_total - total_payment
             
-            response += f"""📊 **Quick Comparison:**
-• Your current loan EMI: ₹{loan_app.get('emi_amount', 3224):,.2f}/month
-• This hypothetical EMI: ₹{hypothetical_emi:,}/month
-• Monthly difference: ₹{abs(hypothetical_emi - loan_app.get('emi_amount', 3224)):,.2f}
+            years = new_tenure // 12
+            months = new_tenure % 12
+            tenure_label = f"{years} year{'s' if years != 1 else ''}"
+            if months > 0:
+                tenure_label += f" {months} month{'s' if months != 1 else ''}"
+            
+            response = f"""💰 **Impact of ₹{hypothetical_emi:,} Monthly EMI:**
 
-💡 **What this means:**
-• **Loan Amount** = Money you get upfront from the bank
-• **Total Payment** = All your monthly payments added up
-• **Interest** = Extra money the bank charges (Total Payment - Loan Amount)
-• **Longer tenure** = Smaller initial loan but you pay more interest over time
+📝 **Your Loan Details:**
+• Loan Amount: ₹{current_loan_amount:,}
+• Interest Rate: {interest_rate}% per annum
 
-Would you like to adjust your loan to match this EMI?"""
+📊 **Comparison:**
+
+**Current Plan:**
+• Monthly EMI: ₹{current_emi:,.0f}
+• Tenure: {loan_app.get('tenure_months', 60)} months
+• Total Payment: ₹{current_total:,.0f}
+
+**With ₹{hypothetical_emi:,} EMI:**
+• Monthly EMI: ₹{hypothetical_emi:,}
+• **New Tenure: {new_tenure} months ({tenure_label})**
+• Total Payment: ₹{total_payment:,.0f}
+• Total Interest: ₹{total_interest:,.0f}
+
+💡 **Impact:**
+• Monthly difference: ₹{abs(hypothetical_emi - current_emi):,.0f} {"more" if hypothetical_emi > current_emi else "less"}
+• Tenure {"reduced" if new_tenure < loan_app.get('tenure_months', 60) else "increased"} by {abs(new_tenure - loan_app.get('tenure_months', 60))} months
+• **You'll {"save" if savings > 0 else "pay"} ₹{abs(savings):,.0f} overall!**
+
+Would you like me to adjust your loan to this EMI?"""
             
             # Store the hypothetical EMI for potential confirmation
             conversation["pending_emi_adjustment"] = {
                 "emi_amount": hypothetical_emi,
-                "tenures": tenures,
                 "interest_rate": interest_rate
             }
             
@@ -923,7 +941,7 @@ Would you like to adjust your loan to match this EMI?"""
                 "next_action": "continue_conversation",
                 "actions": ["show_hypothetical_breakdown"],
                 "hypothetical_emi": hypothetical_emi,
-                "emi_data": self._calculate_emi_breakdown(standard_loan_amount, interest_rate, custom_emi=hypothetical_emi)
+                "emi_data": self._calculate_emi_breakdown(current_loan_amount, interest_rate, custom_emi=hypothetical_emi)
             }
         
         elif explanation_query["type"] == "emi_explanation":
@@ -1218,34 +1236,60 @@ How can I help you today?"""
         message_lower = message.lower()
         extracted = {}
         
-        # Extract loan amount with lakhs/crores/K support
-        lakh_matches = re.findall(r'(\d+(?:\.\d+)?)\s*(?:lakh|lakhs|lac|lacs)', message_lower)
-        if lakh_matches:
-            extracted["loan_amount"] = int(float(lakh_matches[0]) * 100000)
+        # ANTI-HALLUCINATION: Only extract if context keywords present
+        loan_keywords = ['loan', 'borrow', 'need', 'want', 'require', 'looking for']
+        has_loan_context = any(word in message_lower for word in loan_keywords)
         
-        crore_matches = re.findall(r'(\d+(?:\.\d+)?)\s*(?:crore|crores|cr)', message_lower)
-        if crore_matches:
-            extracted["loan_amount"] = int(float(crore_matches[0]) * 10000000)
+        # Extract loan amount with lakhs/crores/K support ONLY if loan context present
+        if has_loan_context:
+            lakh_matches = re.findall(r'(\d+(?:\.\d+)?)\s*(?:lakh|lakhs|lac|lacs)', message_lower)
+            if lakh_matches:
+                amount = int(float(lakh_matches[0]) * 100000)
+                # Validate range: 50k to 50 lakhs
+                if 50000 <= amount <= 5000000:
+                    extracted["loan_amount"] = amount
+            
+            crore_matches = re.findall(r'(\d+(?:\.\d+)?)\s*(?:crore|crores|cr)', message_lower)
+            if crore_matches:
+                amount = int(float(crore_matches[0]) * 10000000)
+                # Validate range
+                if amount <= 5000000:  # Max 50 lakhs
+                    extracted["loan_amount"] = amount
         
-        # Extract salary with K support and annual conversion
-        salary_context = any(word in message_lower for word in ['salary', 'income', 'earn', 'earning', 'paid'])
+        # Extract salary with K support and annual conversion - ONLY if salary context
+        salary_keywords = ['salary', 'income', 'earn', 'earning', 'paid', 'make', 'get paid', 'compensation']
+        salary_context = any(word in message_lower for word in salary_keywords)
         
-        if salary_context or re.search(r'\d+\s*(?:k|lakh|lakhs)', message_lower):
-            # Check for annual salary indicators
-            is_annual = any(term in message_lower for term in ['per year', 'per annum', 'annual', 'yearly', 'per-year', 'peryear', '/year'])
+        # ANTI-HALLUCINATION: Only extract salary if explicitly mentioned
+        if salary_context:
+            # Check for annual salary indicators (multiple patterns)
+            is_annual = any(term in message_lower for term in [
+                'per year', 'per annum', 'annual', 'yearly', 'per-year', 'peryear', 
+                '/year', 'pa', 'p.a', 'p.a.', 'annum', 'per yr'
+            ])
             
             # Extract lakh amounts
             lakh_matches = re.findall(r'(\d+(?:\.\d+)?)\s*(?:lakh|lakhs|lac|lacs)', message_lower)
             if lakh_matches:
                 amount = int(float(lakh_matches[0]) * 100000)
-                extracted['salary'] = amount // 12 if is_annual else amount
+                # Convert annual to monthly
+                monthly_amount = amount // 12 if is_annual else amount
+                # Validate range: 5k to 10 lakhs monthly
+                if 5000 <= monthly_amount <= 1000000:
+                    extracted['salary'] = monthly_amount
+                    if is_annual:
+                        print(f"💰 Converted annual salary {amount:,} to monthly {monthly_amount:,}")
             
             # Extract K amounts
             k_matches = re.findall(r'(\d+)\s*k(?:\s|,|\.|per|/|$)', message_lower)
             if k_matches:
                 amount = int(k_matches[0]) * 1000
-                if 10000 <= amount <= 5000000:  # Expanded range
-                    extracted['salary'] = amount // 12 if is_annual else amount
+                monthly_amount = amount // 12 if is_annual else amount
+                # Validate range
+                if 5000 <= monthly_amount <= 1000000:
+                    extracted['salary'] = monthly_amount
+                    if is_annual:
+                        print(f"💰 Converted annual salary {amount:,} to monthly {monthly_amount:,}")
         
         # Extract employment status
         if 'salaried' in message_lower:
@@ -1270,6 +1314,24 @@ How can I help you today?"""
         conversation = self.conversations[conversation_id]
         loan_app = conversation["loan_application"]
         
+        # CRITICAL: Post-process salary to detect and convert annual to monthly
+        message_lower = message.lower()
+        
+        # Check if message mentions annual salary
+        is_annual = any(term in message_lower for term in [
+            'per year', 'per annum', 'annual', 'yearly', '/year', 'peryear', 
+            'per-year', 'pa', 'p.a', 'p.a.', 'annum', 'per yr'
+        ])
+        
+        # If salary was extracted and annual indicators present, convert it
+        if "salary" in loan_app and is_annual:
+            current_salary = loan_app["salary"]
+            # If salary seems too high (likely annual), convert to monthly
+            if current_salary > 1000000:  # More than 10 lakhs monthly is unusual
+                monthly_salary = current_salary // 12
+                print(f"💰 CONVERTED: Annual salary ₹{current_salary:,} → Monthly ₹{monthly_salary:,}")
+                loan_app["salary"] = monthly_salary
+        
         # Simple extraction - in a real system, this would use NLP
         message_lower = message.lower()
         
@@ -1289,26 +1351,41 @@ How can I help you today?"""
                     loan_app["customer_name"] = match.group(1).strip()
                     break
         
-        # Extract loan amount with lakhs/crores/K support
+        # ANTI-HALLUCINATION: Only extract loan amount if loan keywords present
+        loan_keywords = ['loan', 'borrow', 'need', 'want', 'require', 'looking for', 'apply']
+        has_loan_context = any(keyword in message_lower for keyword in loan_keywords)
+        
+        # Extract loan amount with lakhs/crores/K support - ONLY if loan context present
         import re
         
-        # Check for lakhs format (e.g., "2 lakhs", "2.5 lakh", "1.5 lakhs")
-        # This will match the FIRST lakh amount (typically the loan amount)
-        lakh_matches = re.findall(r'(\d+(?:\.\d+)?)\s*(?:lakh|lakhs|lac|lacs)', message_lower)
-        if lakh_matches and "loan_amount" not in loan_app:
-            # First lakh amount is usually the loan amount
-            loan_app["loan_amount"] = int(float(lakh_matches[0]) * 100000)
-        
-        # Check for crores format
-        crore_matches = re.findall(r'(\d+(?:\.\d+)?)\s*(?:crore|crores|cr)', message_lower)
-        if crore_matches and "loan_amount" not in loan_app:
-            loan_app["loan_amount"] = int(float(crore_matches[0]) * 10000000)
-        
-        # Fallback to regular numbers if no lakhs/crores found
-        if "loan_amount" not in loan_app:
-            amount_matches = re.findall(r'\b\d{6,}\b', message)  # At least 6 digits
-            if amount_matches:
-                loan_app["loan_amount"] = int(amount_matches[0])
+        if has_loan_context and "loan_amount" not in loan_app:
+            # Check for lakhs format (e.g., "2 lakhs", "2.5 lakh", "1.5 lakhs")
+            lakh_matches = re.findall(r'(\d+(?:\.\d+)?)\s*(?:lakh|lakhs|lac|lacs)', message_lower)
+            if lakh_matches:
+                amount = int(float(lakh_matches[0]) * 100000)
+                # Validate range: 50k to 50 lakhs
+                if 50000 <= amount <= 5000000:
+                    loan_app["loan_amount"] = amount
+                    print(f"💳 Extracted loan amount: ₹{amount:,}")
+            
+            # Check for crores format
+            if "loan_amount" not in loan_app:
+                crore_matches = re.findall(r'(\d+(?:\.\d+)?)\s*(?:crore|crores|cr)', message_lower)
+                if crore_matches:
+                    amount = int(float(crore_matches[0]) * 10000000)
+                    # Validate range: max 50 lakhs
+                    if amount <= 5000000:
+                        loan_app["loan_amount"] = amount
+                        print(f"💳 Extracted loan amount: ₹{amount:,}")
+            
+            # Fallback to regular numbers if no lakhs/crores found
+            if "loan_amount" not in loan_app:
+                amount_matches = re.findall(r'\b\d{6,}\b', message)  # At least 6 digits
+                if amount_matches:
+                    amount = int(amount_matches[0])
+                    if 50000 <= amount <= 5000000:
+                        loan_app["loan_amount"] = amount
+                        print(f"💳 Extracted loan amount: ₹{amount:,}")
         
         # Extract salary - improved to work WITHOUT specific keywords
         # First, determine if salary is annual or monthly
