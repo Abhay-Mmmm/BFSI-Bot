@@ -94,6 +94,7 @@ Handler Selection Logic:
    - "change my salary to X" → next_handler: "modification"
 
 4. If providing loan details:
+   - User introduces themselves ("I am X") → intent: "provide_loan_details", next_handler: "needs_assessment"
    - Missing required fields → next_handler: "needs_assessment"
    - All fields present, not verified → next_handler: "verification"
    - Verified, not underwritten → next_handler: "underwriting"
@@ -174,10 +175,23 @@ Extract numbers with Indian formats:
 - "3 lakhs per year" / "per annum" = 300000/12 = 25000 (convert annual to monthly)
 - "24k per month" = 24000
 
-CRITICAL Salary Extraction:
-- If user says "per year", "per annum", "annual", "yearly" → divide by 12 for monthly
-- If user says "per month", "monthly" → use as-is
-- Default assumption: amounts are monthly unless specified otherwise
+CRITICAL Salary Extraction Rules:
+- If user says "per year", "per annum", "annual", "yearly", "pa", "/year" → divide by 12 for monthly
+- If user says "per month", "monthly", "pm", "/month" → use as-is
+- Default assumption: amounts are monthly UNLESS explicitly stated as annual
+- Valid monthly salary range: ₹5,000 to ₹10,00,000 (5k to 10 lakhs)
+- Valid loan amount range: ₹50,000 to ₹50,00,000 (50k to 50 lakhs)
+
+CRITICAL Anti-Hallucination Rules:
+- ONLY extract salary if the user EXPLICITLY mentions it with keywords: "salary", "income", "earn", "earning", "paid", "make", "get paid"
+- ONLY extract loan_amount if user EXPLICITLY mentions it with keywords: "loan", "borrow", "need", "want to borrow", "amount"
+- DO NOT extract salary from statements like "I am Rajesh" or "My name is X" - these are names, not salaries
+- DO NOT invent or guess numbers - extract ONLY what the user explicitly states
+- If user just says "30 lakhs" without context, ask for clarification: is this loan amount or annual salary?
+- Example: "I am Rajesh and I have a salary of 30lakhs per annum" → salary: 250000 (30L÷12)
+- Example: "I am Rajesh" → customer_name: "Rajesh", salary: null (NO hallucination)
+- Example: "I need 1.5 lakhs" → loan_amount: 150000
+- Example: "My salary is 60k" → salary: 60000 (monthly by default)
 
 Return ONLY valid JSON, no other text."""
 
