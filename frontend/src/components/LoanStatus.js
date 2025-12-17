@@ -98,22 +98,30 @@ const LoanStatus = memo(({ status, emiData }) => {
     let balance = loanAmount;
     const monthlyRate = interestRate / 100 / 12;
     
-    const milestones = [1, 12, 24, 36, 48, tenureMonths];
+    // Define milestones to display (unique, sorted, within tenure)
+    const milestones = [...new Set([1, 12, 24, 36, 48, tenureMonths])].filter(m => m <= tenureMonths).sort((a, b) => a - b);
     
-    milestones.forEach(month => {
-      if (month <= tenureMonths) {
+    let lastCalculatedMonth = 0;
+    
+    milestones.forEach(targetMonth => {
+      // Calculate all months from last calculated month to target month
+      for (let month = lastCalculatedMonth + 1; month <= targetMonth; month++) {
         const interestPaid = balance * monthlyRate;
         const principalPaid = emi - interestPaid;
         balance = balance - principalPaid;
         
-        schedule.push({
-          month,
-          emi,
-          principal: Math.round(principalPaid),
-          interest: Math.round(interestPaid),
-          balance: Math.max(0, Math.round(balance))
-        });
+        // Only add to schedule if this is a milestone month
+        if (month === targetMonth) {
+          schedule.push({
+            month,
+            emi,
+            principal: Math.round(principalPaid),
+            interest: Math.round(interestPaid),
+            balance: Math.max(0, Math.round(balance))
+          });
+        }
       }
+      lastCalculatedMonth = targetMonth;
     });
     
     return schedule;

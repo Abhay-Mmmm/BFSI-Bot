@@ -2020,23 +2020,31 @@ How can I help you today?"""
         conversation = self.conversations[conversation_id]
         loan_app = conversation["loan_application"]
         
-        # Prepare sanction details
+        # Use existing values from loan_app if available, otherwise use defaults
+        existing_emi = loan_app.get("emi_amount", 0)
+        existing_tenure = loan_app.get("tenure_months", 60)
+        existing_interest = loan_app.get("interest_rate", 10.5)
+        
+        # Prepare sanction details - preserve existing EMI/tenure if user adjusted them
         sanction_details = {
             "loan_amount": loan_app.get("loan_amount", 0),
-            "interest_rate": 10.5,  # This would come from underwriting
-            "emi_amount": 0,  # Calculate based on loan amount and tenure
-            "tenure_months": 60,
-            "processing_fee": loan_app.get("loan_amount", 0) * 0.02,  # 2% processing fee
+            "interest_rate": existing_interest,
+            "tenure_months": existing_tenure,
+            "processing_fee": loan_app.get("loan_amount", 0) * 0.005,  # 0.5% processing fee
             "document_requirements": [] if loan_app.get("decision") == "approved" else ["salary_slip"]
         }
         
-        # Calculate EMI
-        p = sanction_details["loan_amount"]
-        r = sanction_details["interest_rate"] / 12 / 100
-        n = sanction_details["tenure_months"]
-        if p > 0 and r > 0 and n > 0:
-            emi = p * r * ((1 + r) ** n) / (((1 + r) ** n) - 1)
-            sanction_details["emi_amount"] = round(emi, 2)
+        # Use existing EMI if available, otherwise calculate
+        if existing_emi > 0:
+            sanction_details["emi_amount"] = existing_emi
+        else:
+            # Calculate EMI only if not already set
+            p = sanction_details["loan_amount"]
+            r = sanction_details["interest_rate"] / 12 / 100
+            n = sanction_details["tenure_months"]
+            if p > 0 and r > 0 and n > 0:
+                emi = p * r * ((1 + r) ** n) / (((1 + r) ** n) - 1)
+                sanction_details["emi_amount"] = round(emi, 2)
         
         # Update loan application with sanction details
         loan_app.update(sanction_details)

@@ -88,6 +88,7 @@ EmptyState.displayName = 'EmptyState';
 const PotentialCustomersCard = ({ maxItems = 5 }) => {
   const [customers, setCustomers] = useState([]);
   const [callingCustomer, setCallingCustomer] = useState(null);
+  const [callStatus, setCallStatus] = useState('calling'); // 'calling' | 'not_picked'
 
   /**
    * Format timestamp for display
@@ -153,6 +154,7 @@ const PotentialCustomersCard = ({ maxItems = 5 }) => {
    */
   const handleCall = useCallback((customer) => {
     setCallingCustomer(customer);
+    setCallStatus('calling');
     
     // Emit event that call was initiated (for the client to receive)
     eventBus.emit(EVENT_TYPES.CALL_INITIATED, {
@@ -162,10 +164,16 @@ const PotentialCustomersCard = ({ maxItems = 5 }) => {
       timestamp: new Date().toISOString()
     });
     
-    // Clear calling state after a delay
+    // After 4 seconds, show "not picked" status
     setTimeout(() => {
-      setCallingCustomer(null);
-    }, 3000);
+      setCallStatus('not_picked');
+      
+      // After 2 more seconds, close the popup
+      setTimeout(() => {
+        setCallingCustomer(null);
+        setCallStatus('calling');
+      }, 2000);
+    }, 4000);
   }, []);
 
   /**
@@ -281,9 +289,38 @@ const PotentialCustomersCard = ({ maxItems = 5 }) => {
         )}
       </div>
       {callingCustomer && (
-        <div className="call-notification">
-          <PhoneIcon />
-          <span>Calling {callingCustomer.name}...</span>
+        <div className="call-popup-overlay">
+          <div className={`call-popup-modal ${callStatus === 'not_picked' ? 'not-picked' : ''}`}>
+            <div className="call-popup-icon">
+              {callStatus === 'calling' ? (
+                <div className="call-pulse-animation">
+                  <PhoneIcon />
+                </div>
+              ) : (
+                <div className="call-missed-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                    <line x1="1" y1="1" x2="23" y2="23" stroke="#ef4444" strokeWidth="2"/>
+                  </svg>
+                </div>
+              )}
+            </div>
+            <div className="call-popup-text">
+              {callStatus === 'calling' ? (
+                <>
+                  <span className="call-popup-title">🤖 AI Agent Calling</span>
+                  <span className="call-popup-name">{callingCustomer.name}</span>
+                  <span className="call-popup-status">Connecting...</span>
+                </>
+              ) : (
+                <>
+                  <span className="call-popup-title call-missed">📵 Call Not Picked</span>
+                  <span className="call-popup-name">{callingCustomer.name}</span>
+                  <span className="call-popup-status">Customer didn't answer</span>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
