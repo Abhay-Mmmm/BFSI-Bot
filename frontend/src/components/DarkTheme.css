@@ -1329,14 +1329,20 @@
   animation: fadeInUp 0.3s ease;
 }
 
+.dark-theme .message.user {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
 .dark-theme .message.user .message-content {
   background: var(--dark-gradient-accent);
   color: var(--dark-text-primary);
   border-radius: 16px 16px 4px 16px;
   padding: 14px 18px;
-  min-width: 60px;
   max-width: 70%;
-  margin-left: auto;
+  width: fit-content;
+  min-width: min-content;
   box-shadow: var(--dark-shadow-md);
   word-wrap: break-word;
   overflow-wrap: break-word;
@@ -1348,8 +1354,22 @@
   line-height: 1.5;
 }
 
+.dark-theme .message.user .message-timestamp {
+  text-align: right;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: var(--dark-text-muted);
+}
+
 .dark-theme .message.user .markdown-content p:last-child {
   margin-bottom: 0;
+}
+
+.dark-theme .message.assistant {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  align-self: flex-start;
 }
 
 .dark-theme .message.assistant .message-content {
@@ -1360,6 +1380,15 @@
   padding: 12px 16px;
   max-width: 80%;
   box-shadow: var(--dark-shadow-sm);
+  width: fit-content;
+  min-width: min-content;
+}
+
+.dark-theme .message.assistant .message-timestamp {
+  text-align: left;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: var(--dark-text-muted);
 }
 
 .dark-theme .message.assistant .message-content strong,
@@ -1411,15 +1440,16 @@
 }
 
 /* Typing Indicator */
-.dark-theme .typing-indicator {
-  display: flex;
+.dark-theme .message.assistant .typing-indicator {
+  display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 12px 16px;
-  background: var(--dark-bg-card);
-  border-radius: 16px;
-  border: 1px solid var(--dark-border-primary);
-  width: fit-content;
+}
+
+.dark-theme .typing-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .dark-theme .typing-indicator span {
@@ -1468,6 +1498,7 @@
   background: var(--dark-bg-card);
   border-top: 1px solid var(--dark-border-primary);
   padding: 16px 20px;
+  align-items: center;
 }
 
 .dark-theme .input-area textarea,
@@ -1500,8 +1531,12 @@
   background: var(--dark-bg-card);
   border: 1px solid var(--dark-border-primary);
   border-radius: var(--dark-radius-md);
-  padding: 12px 16px;
-  margin-bottom: 12px;
+  padding: 0 16px;
+  height: 51px;
+  margin-top: 11px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .dark-theme .suggestions-label {
@@ -1510,10 +1545,11 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 10px;
+  margin-bottom: 0;
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
 }
 
 .dark-theme .suggestion-chip {
