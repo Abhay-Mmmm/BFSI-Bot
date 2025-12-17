@@ -54,9 +54,10 @@ Your job is to understand the user's intent and extract structured information.
 
 Return a JSON object with:
 {{
-  "intent": "<one of: provide_loan_details, ask_question, confirm, reject, modify, object, greeting, other>",
-  "next_handler": "<which handler to call: needs_assessment, verification, underwriting, sanction, emi_explanation, hypothetical_emi, decision_explanation, modification, objection, engagement, confirmation, rejection>",
+  "intent": "<one of: provide_loan_details, ask_question, confirm, reject, modify, object, greeting, rollback, other>",
+  "next_handler": "<which handler to call: needs_assessment, verification, underwriting, sanction, emi_explanation, hypothetical_emi, decision_explanation, modification, objection, engagement, confirmation, rejection, rollback>",
   "extracted_data": {{
+    "customer_name": "<name or null>",
     "loan_amount": <number or null>,
     "salary": <number or null>,
     "employment_status": "<salaried|contract|self_employed or null>",
@@ -64,9 +65,11 @@ Return a JSON object with:
   }},
   "question_type": "<if asking question: emi_explanation, decision_explanation, hypothetical_emi, or null>",
   "hypothetical_emi_amount": <if asking 'what if I paid X': number or null>,
-  "modification_type": "<if modifying: loan_amount, salary, city, employment, or null>",
-  "is_confirmation": <true if user is agreeing/confirming (yes/ok/sure/go ahead/please do), false otherwise>,
+  "modification_type": "<if modifying: customer_name, loan_amount, salary, city, employment, or null>",
+  "is_confirmation": <true if user is agreeing/confirming (yes/ok/sure/go ahead/please do/proceed), false otherwise>,
   "is_rejection": <true if user is declining WITHOUT proposing alternatives (no/nope/no need alone), false otherwise>,
+  "is_rollback": <true if user wants to undo/revert/go back to previous change, false otherwise>,
+  "rollback_to": "<if rollback: which field to revert (last_change/customer_name/loan_amount/salary/city/employment_status) or null. Extract field name from patterns like: 'undo salary', 'revert loan amount', 'don't want the salary change', 'remove the city change', 'take back loan amount'. If user just says 'undo' or 'rollback' without field name, use 'last_change'>",
   "reasoning": "<brief explanation of why you chose this handler>",
   "confidence": <0.0 to 1.0>
 }}
@@ -115,11 +118,12 @@ Handler Selection Logic:
    - Never reset to engagement unless stage is empty
 
 Intent Definitions:
-- provide_loan_details: User giving loan requirements (amount, salary, city, employment)
+- provide_loan_details: User giving loan requirements (name, amount, salary, city, employment)
 - ask_question: User asking how something works (EMI calculation, approval decision, etc)
-- confirm: User confirming/agreeing to a suggestion (yes, ok, sure, please do it, go ahead)
+- confirm: User confirming/agreeing to proceed with changes (yes, ok, sure, please do it, go ahead, proceed)
 - reject: User declining/rejecting a suggestion WITHOUT proposing changes (no, nope, no need, no thanks, skip, cancel)
 - modify: User wants to change previously provided information OR asking "what if I was X instead?"
+- rollback: User wants to undo/revert changes (go back, undo, revert, cancel that, previous value, rollback, don't want that, remove that, take back). Can be specific field or last change.
 - object: User has concerns/objections (too expensive, not sure, need time)
 - greeting: User saying hello/hi/starting conversation
 - other: Anything else
@@ -129,16 +133,33 @@ IMPORTANT Distinction:
 - "no, but what if I was self-employed?" = modify (proposing a change)
 - "what if my salary was 80k?" = modify (hypothetical change to application)
 - "change my city to Mumbai" = modify (explicit change request)
+- "undo that" / "go back" / "revert" / "take it back" = rollback with rollback_to: "last_change"
+- "rollback salary" / "undo loan amount" / "I don't want the city change" / "remove the salary change" / "don't want the salary change" = rollback with rollback_to: specific field name
+- "revert all" / "undo everything" = rollback with rollback_to: "last_change" (handled sequentially)
 
 For "what if" questions:
 - "what if I paid 6k EMI?" → ask_question (hypothetical_emi calculation)
 - "what if I was self-employed?" → modify (change employment status and recalculate)
 - "what if my salary was higher?" → modify (change salary and recalculate)
 
+IMPORTANT for Pending Confirmation (after showing updated info):
+- Bot shows updated profile and asks "Would you like to proceed with verification?"
+- User says yes/ok/sure/proceed → is_confirmation: true, intent: confirm, next_handler: "confirmation"
+- User says no/wait → is_rejection: true, intent: reject
+- User says "change X to Y" → intent: modify (continue editing)
+- User says "rollback" / "undo" / "take it back" → intent: rollback, next_handler: "rollback", rollback_to: "last_change"
+- User says "don't want the salary change" / "remove the salary change" → intent: rollback, next_handler: "rollback", rollback_to: "salary"
+- User says "revert my loan amount" / "remove loan amount change" → intent: rollback, next_handler: "rollback", rollback_to: "loan_amount"
+
 IMPORTANT for Pending EMI Adjustment:
 - If pending EMI exists and user says yes/ok/sure/go ahead → is_confirmation: true, intent: confirm
 - If pending EMI exists and user says no/nope/no need/skip → is_rejection: true, intent: reject
 - Context matters! "ok" after seeing breakdown = confirmation, "ok" in general chat = just acknowledgment
+
+Name Extraction:
+- Look for "I am <name>", "My name is <name>", "Name: <name>", or just "<name>" in introduction
+- Common Indian names: Raj, Priya, Amit, Ravi, Suresh, etc.
+- Extract first name or full name as provided
 
 Question Types:
 - emi_explanation: "How is EMI calculated?" "Why is my EMI X?"

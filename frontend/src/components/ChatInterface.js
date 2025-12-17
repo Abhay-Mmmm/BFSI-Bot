@@ -17,7 +17,6 @@ const ChatInterface = () => {
   const [emiData, setEmiData] = useState(null);
   const [sanctionLetter, setSanctionLetter] = useState(null);
   const [showUpload, setShowUpload] = useState(false);
-  const [showSanctionModal, setShowSanctionModal] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
 
   const messagesEndRef = useRef(null);
@@ -280,6 +279,22 @@ const ChatInterface = () => {
     adjustTextareaHeight();
   }, [inputValue]);
 
+  // Focus input on mount and after messages
+  useEffect(() => {
+    if (inputRef.current && !isLoading) {
+      inputRef.current.focus();
+    }
+  }, [messages, isLoading]);
+
+  // Focus input on conversation start
+  useEffect(() => {
+    if (conversationId && inputRef.current) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [conversationId]);
+
   return (
     <div className="app-container dark-theme">
       <Sidebar onNewChat={startNewConversation} />
@@ -397,7 +412,7 @@ const ChatInterface = () => {
                 
                 {/* Show Loan Status when available */}
                 {loanStatus && (
-                  <LoanStatus status={loanStatus} />
+                  <LoanStatus status={loanStatus} emiData={emiData} />
                 )}
                 
                 {/* Show uploaded documents list */}

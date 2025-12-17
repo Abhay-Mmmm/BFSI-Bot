@@ -2009,9 +2009,10 @@
 }
 
 .dark-theme .section-desc {
-  color: var(--dark-text-muted);
+  color: var(--dark-text-secondary);
   font-size: 0.8125rem;
   margin-bottom: 12px;
+  opacity: 0.9;
 }
 
 .dark-theme .summary-table,
@@ -2029,12 +2030,13 @@
 }
 
 .dark-theme .summary-table td:first-child {
-  color: var(--dark-text-secondary);
+  color: var(--dark-text-primary);
+  font-weight: 500;
 }
 
 .dark-theme .summary-table td:last-child {
   color: var(--dark-text-primary);
-  font-weight: 500;
+  font-weight: 600;
   text-align: right;
 }
 
@@ -2044,9 +2046,10 @@
 
 .dark-theme .summary-table td small {
   display: block;
-  color: var(--dark-text-muted);
+  color: var(--dark-text-secondary);
   font-size: 0.75rem;
   margin-top: 2px;
+  opacity: 0.9;
 }
 
 .dark-theme .summary-table .total-row td {
@@ -2056,7 +2059,7 @@
 
 .dark-theme .amortization-table th {
   background: var(--dark-bg-elevated);
-  color: var(--dark-text-tertiary);
+  color: var(--dark-text-secondary);
   font-weight: 600;
   text-transform: uppercase;
   font-size: 0.6875rem;
@@ -2064,7 +2067,8 @@
 }
 
 .dark-theme .amortization-table td {
-  color: var(--dark-text-secondary);
+  color: var(--dark-text-primary);
+  font-weight: 500;
 }
 
 .dark-theme .amortization-table td.principal {
