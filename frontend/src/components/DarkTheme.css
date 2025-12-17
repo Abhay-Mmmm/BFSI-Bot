@@ -2193,6 +2193,28 @@
   margin-top: 6px;
 }
 
+.dark-theme .settings-card {
+  background: var(--dark-bg-card);
+  border: 1px solid var(--dark-border-primary);
+  border-radius: var(--dark-radius-lg);
+  padding: 32px;
+  max-width: 600px;
+  margin: 40px auto;
+}
+
+.dark-theme .settings-card h3 {
+  color: var(--dark-text-primary);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.dark-theme .settings-card .settings-subtitle {
+  color: var(--dark-text-muted);
+  font-size: 0.9375rem;
+  margin-bottom: 32px;
+}
+
 .dark-theme .settings-save-btn {
   background: var(--dark-gradient-accent);
   color: white;

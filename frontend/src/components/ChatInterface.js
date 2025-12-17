@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import '../App.css';
 import './DarkTheme.css';
@@ -7,6 +7,21 @@ import Sidebar from './Sidebar';
 import LoanStatus from './LoanStatus';
 import DocumentUpload from './DocumentUpload';
 import eventBus, { EVENT_TYPES } from '../services/eventBus';
+
+// Debounce utility function
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  
+  return debouncedValue;
+};
 
 const ChatInterface = () => {
   const [conversationId, setConversationId] = useState(null);
@@ -307,6 +322,7 @@ const ChatInterface = () => {
     }
   };
 
+  // Simple inline keypress handler - no useCallback needed since we call handleSendMessage directly
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -316,7 +332,7 @@ const ChatInterface = () => {
     }
   };
 
-  const handleDocumentUpload = (document) => {
+  const handleDocumentUpload = useCallback((document) => {
     setDocuments(prev => [...prev, document]);
     
     // Emit document uploaded event for real-time sync
@@ -326,19 +342,33 @@ const ChatInterface = () => {
       conversationId: conversationId,
       timestamp: new Date().toISOString()
     });
-  };
+  }, [conversationId]);
 
-  const adjustTextareaHeight = () => {
+  // Memoized textarea height adjustment
+  const adjustTextareaHeight = useCallback(() => {
     const textarea = inputRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
       textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
     }
-  };
+  }, []);
 
+  // Debounce the textarea height adjustment
+  const debouncedInputValue = useDebounce(inputValue, 50);
+  
   useEffect(() => {
     adjustTextareaHeight();
-  }, [inputValue]);
+  }, [debouncedInputValue, adjustTextareaHeight]);
+
+  // Memoized input change handler
+  const handleInputChange = useCallback((e) => {
+    setInputValue(e.target.value);
+  }, []);
+
+  // Memoized toggle upload handler
+  const handleToggleUpload = useCallback(() => {
+    setShowUpload(prev => !prev);
+  }, []);
 
   // Focus input on mount and after messages
   useEffect(() => {
@@ -370,7 +400,7 @@ const ChatInterface = () => {
             <div className="d-flex gap-md">
               <button
                 className={`button ${showUpload ? 'button-primary' : 'button-secondary'}`}
-                onClick={() => setShowUpload(!showUpload)}
+                onClick={handleToggleUpload}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -422,7 +452,7 @@ const ChatInterface = () => {
                 <textarea
                   ref={inputRef}
                   value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
+                  onChange={handleInputChange}
                   onKeyPress={handleKeyPress}
                   placeholder="Type your message here..."
                   rows="1"

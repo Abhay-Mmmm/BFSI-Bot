@@ -28,23 +28,9 @@ const ModeSelector = () => {
   return (
     <div className="mode-selector-container">
       <div className="mode-selector-content">
-        {/* Logo and Header */}
+        {/* Header */}
         <div className="mode-selector-header">
-          <div className="mode-selector-logo">
-            <svg width="56" height="56" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect width="36" height="36" rx="10" fill="url(#logo-gradient-selector)"/>
-              <defs>
-                <linearGradient id="logo-gradient-selector" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
-                  <stop stopColor="#3B82F6"/>
-                  <stop offset="1" stopColor="#2563EB"/>
-                </linearGradient>
-              </defs>
-              <path d="M10 14H26M10 18H22M10 22H18" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-              <circle cx="26" cy="22" r="3" fill="#10B981"/>
-              <path d="M25 22L26 23L28 21" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <h1 className="mode-selector-title">PRIMUM</h1>
+          <h1 className="mode-selector-title">PRIMUM<span style={{ color: '#4169E1' }}>AI</span></h1>
           <p className="mode-selector-subtitle">AI-Powered Loan Processing System</p>
         </div>
 

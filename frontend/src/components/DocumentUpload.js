@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import axios from 'axios';
 
-const DocumentUpload = ({ documents, onUpload, conversationId }) => {
+const DocumentUpload = memo(({ documents, onUpload, conversationId }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState('');
 
-  const handleFileUpload = async (event) => {
+  const handleFileUpload = useCallback(async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
@@ -68,7 +68,7 @@ const DocumentUpload = ({ documents, onUpload, conversationId }) => {
       // Clear status after 3 seconds
       setTimeout(() => setUploadStatus(''), 3000);
     }
-  };
+  }, [conversationId, onUpload]);
 
   return (
     <div className="document-upload card p-lg">
@@ -128,6 +128,8 @@ const DocumentUpload = ({ documents, onUpload, conversationId }) => {
       )}
     </div>
   );
-};
+});
+
+DocumentUpload.displayName = 'DocumentUpload';
 
 export default DocumentUpload;

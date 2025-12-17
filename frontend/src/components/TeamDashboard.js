@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, memo, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, LineChart, Line } from 'recharts';
 import Sidebar from './Sidebar';
 import RecentActivitiesCard from './RecentActivitiesCard';
 import './styles.css';
 import './DarkTheme.css';
 
-// Custom Tooltip Component for dark theme
-const CustomTooltip = ({ active, payload, label }) => {
+// Memoized Custom Tooltip Component for dark theme
+const CustomTooltip = memo(({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
       <div className="dark-chart-tooltip">
@@ -22,26 +22,43 @@ const CustomTooltip = ({ active, payload, label }) => {
     );
   }
   return null;
+});
+
+CustomTooltip.displayName = 'CustomTooltip';
+
+// Debounce hook
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  
+  return debouncedValue;
 };
 
-const TeamDashboard = () => {
-  // Keep existing data - NO BACKEND CHANGES
-  const agentPerformance = [
+const TeamDashboard = memo(() => {
+  // Memoize static data - NO BACKEND CHANGES
+  const agentPerformance = useMemo(() => [
     { name: 'Mariah', sales: 12740161, leads: 45, conversion: 28, status: 'online', role: 'Senior RM' },
     { name: 'Justin', sales: 11926320, leads: 42, conversion: 25, status: 'online', role: 'Loan Officer' },
     { name: 'Bruce', sales: 9957688, leads: 38, conversion: 22, status: 'busy', role: 'Senior RM' },
     { name: 'Elton', sales: 9871412, leads: 35, conversion: 24, status: 'online', role: 'Loan Officer' },
     { name: 'Celine', sales: 9614017, leads: 32, conversion: 26, status: 'busy', role: 'Sales Lead' },
-  ];
+  ], []);
 
-  const teamStatus = [
+  const teamStatus = useMemo(() => [
     { name: 'Online', value: 8, color: '#10B981' },
     { name: 'In Call', value: 4, color: '#F59E0B' },
     { name: 'Offline', value: 2, color: '#6B7280' },
-  ];
+  ], []);
 
   // Weekly performance trend data
-  const weeklyTrend = [
+  const weeklyTrend = useMemo(() => [
     { day: 'Mon', leads: 32, closed: 12 },
     { day: 'Tue', leads: 45, closed: 18 },
     { day: 'Wed', leads: 38, closed: 15 },
@@ -49,29 +66,50 @@ const TeamDashboard = () => {
     { day: 'Fri', leads: 48, closed: 20 },
     { day: 'Sat', leads: 25, closed: 10 },
     { day: 'Sun', leads: 12, closed: 5 },
-  ];
+  ], []);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  
+  // Debounce search term for performance
+  const debouncedSearchTerm = useDebounce(searchTerm, 150);
 
-  const filteredAgents = agentPerformance.filter(agent => {
-    const matchesSearch = agent.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || agent.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  // Memoized filtered agents - uses debounced search
+  const filteredAgents = useMemo(() => {
+    return agentPerformance.filter(agent => {
+      const matchesSearch = agent.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || agent.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [agentPerformance, debouncedSearchTerm, statusFilter]);
 
-  const formatCurrency = (value) => {
+  // Memoized currency formatter
+  const formatCurrency = useCallback((value) => {
     if (value >= 10000000) {
       return '₹' + (value / 10000000).toFixed(1) + ' Cr';
     } else if (value >= 100000) {
       return '₹' + (value / 100000).toFixed(1) + ' L';
     }
     return '₹' + value.toLocaleString();
-  };
+  }, []);
 
-  const getInitials = (name) => {
+  // Memoized initials getter
+  const getInitials = useCallback((name) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
-  };
+  }, []);
+
+  // Memoized handlers
+  const handleSearchChange = useCallback((e) => {
+    setSearchTerm(e.target.value);
+  }, []);
+
+  const handleStatusChange = useCallback((e) => {
+    setStatusFilter(e.target.value);
+  }, []);
+
+  const handleClearFilters = useCallback(() => {
+    setStatusFilter('all');
+  }, []);
 
   return (
     <div className="app-container dark-theme">
@@ -93,7 +131,7 @@ const TeamDashboard = () => {
                 type="text" 
                 placeholder="Search agents..." 
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={handleSearchChange}
               />
             </div>
             <button className="dark-icon-btn">
@@ -388,12 +426,12 @@ const TeamDashboard = () => {
                   placeholder="Search..." 
                   style={{ width: '120px' }}
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={handleSearchChange}
                 />
               </div>
               <select 
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={handleStatusChange}
                 style={{
                   padding: '8px 12px',
                   background: 'var(--dark-bg-input)',
@@ -436,9 +474,9 @@ const TeamDashboard = () => {
             <div className="dark-filter-chips">
               <div className="dark-filter-chip">
                 {statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
-                <span className="remove" onClick={() => setStatusFilter('all')}>×</span>
+                <span className="remove" onClick={handleClearFilters}>×</span>
               </div>
-              <span style={{ color: 'var(--dark-text-muted)', fontSize: '0.75rem', cursor: 'pointer' }} onClick={() => setStatusFilter('all')}>
+              <span style={{ color: 'var(--dark-text-muted)', fontSize: '0.75rem', cursor: 'pointer' }} onClick={handleClearFilters}>
                 Clear all
               </span>
             </div>
@@ -550,6 +588,8 @@ const TeamDashboard = () => {
       </div>
     </div>
   );
-};
+});
+
+TeamDashboard.displayName = 'TeamDashboard';
 
 export default TeamDashboard;
