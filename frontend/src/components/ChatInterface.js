@@ -40,6 +40,12 @@ const ChatInterface = () => {
   const inputRef = useRef(null);
   const abortControllerRef = useRef(null);
   const isInitialMount = useRef(true);
+  const clientNameRef = useRef(clientName);
+
+  // Keep clientNameRef updated
+  useEffect(() => {
+    clientNameRef.current = clientName;
+  }, [clientName]);
 
   const startNewConversation = useCallback(async () => {
     console.log('New Chat button clicked!');
@@ -53,6 +59,7 @@ const ChatInterface = () => {
       setEmiData(null);
       setSanctionLetter(null);
       setSuggestions([]);
+      setClientName(null); // Reset client name
       localStorage.removeItem('currentConversation');
 
       // Then start new conversation with increased timeout
@@ -69,6 +76,15 @@ const ChatInterface = () => {
         conversationId: response.data.conversation_id,
         timestamp: new Date().toISOString()
       });
+
+      // If we have a name, emit it too
+      if (clientNameRef.current) {
+        eventBus.emit(EVENT_TYPES.CLIENT_NAME_UPDATED, {
+          name: clientNameRef.current,
+          conversationId: response.data.conversation_id,
+          timestamp: new Date().toISOString()
+        });
+      }
       
       // Get initial greeting from backend
       console.log('Calling /conversation/query with hello...');
@@ -179,6 +195,24 @@ const ChatInterface = () => {
     setInputValue('');
     setSuggestions([]); // Clear any suggestions
     setIsLoading(true);
+
+    // Try to detect name from message (simple heuristic)
+    if (!clientName) {
+      const nameRegex = /(?:my name is|i am|i'm|this is) ([a-zA-Z ]{2,30})/i;
+      const match = currentInput.match(nameRegex);
+      if (match && match[1]) {
+        const detectedName = match[1].trim();
+        // Avoid capturing common words if the regex is too loose, but for "my name is X" it's usually safe
+        if (detectedName.split(' ').length <= 3) {
+          setClientName(detectedName);
+          eventBus.emit(EVENT_TYPES.CLIENT_NAME_UPDATED, {
+            name: detectedName,
+            conversationId: conversationId,
+            timestamp: new Date().toISOString()
+          });
+        }
+      }
+    }
     
     // Emit user message sent event for real-time sync
     eventBus.emit(EVENT_TYPES.CHAT_MESSAGE_SENT, {
@@ -397,6 +431,7 @@ const ChatInterface = () => {
               <h3 className="header-3 m-0">Loan Application Chat</h3>
               <p className="caption text-tertiary">AI-powered loan processing assistant</p>
             </div>
+
             <div className="d-flex gap-md">
               <button
                 className={`button ${showUpload ? 'button-primary' : 'button-secondary'}`}

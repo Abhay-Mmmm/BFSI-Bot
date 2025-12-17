@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect width="100" height="100" fill="#0F172A" rx="15"/>
+  <text x="50" y="70" font-family="Arial, sans-serif" font-size="42" font-weight="bold" text-anchor="middle">
+    <tspan fill="#E2E8F0">p</tspan><tspan fill="#3B82F6">AI</tspan>
+  </text>
+</svg>

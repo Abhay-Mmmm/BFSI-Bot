@@ -101,10 +101,73 @@ const EmptyState = memo(() => (
 
 EmptyState.displayName = 'EmptyState';
 
+// Modal empty state component
+const ModalEmptyState = memo(() => (
+  <div className="activity-modal-empty">
+    <div className="activity-empty-icon">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+    </div>
+    <p className="activity-modal-empty-text">Nothing here.</p>
+    <p className="activity-modal-empty-hint">Activities will appear when clients interact with the chat.</p>
+  </div>
+));
+
+ModalEmptyState.displayName = 'ModalEmptyState';
+
+// Activities Modal Component
+const ActivitiesModal = memo(({ isOpen, onClose, activities, formatTime }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="activity-modal-overlay" onClick={onClose}>
+      <div className="activity-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="activity-modal-header">
+          <h2 className="activity-modal-title">All Recent Activities</h2>
+          <button className="activity-modal-close" onClick={onClose}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div className="activity-modal-content">
+          {activities.length === 0 ? (
+            <ModalEmptyState />
+          ) : (
+            <div className="activity-modal-list">
+              {activities.map((activity) => (
+                <ActivityItem 
+                  key={activity.id} 
+                  activity={activity} 
+                  formatTime={formatTime}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="activity-modal-footer">
+          <span className="activity-modal-count">
+            {activities.length} {activities.length === 1 ? 'activity' : 'activities'}
+          </span>
+          <button className="activity-modal-close-btn" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+ActivitiesModal.displayName = 'ActivitiesModal';
+
 const RecentActivitiesCard = ({ maxItems = 10 }) => {
   const [activities, setActivities] = useState([]);
+  const [allActivities, setAllActivities] = useState([]);
   const [isConnected, setIsConnected] = useState(true);
   const [currentClientName, setCurrentClientName] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   /**
    * Format timestamp for display - memoized
@@ -126,24 +189,31 @@ const RecentActivitiesCard = ({ maxItems = 10 }) => {
    * Add a new activity to the list
    */
   const addActivity = useCallback((activity) => {
+    const newActivity = {
+      id: activity.id || Date.now() + Math.random(),
+      type: activity.type,
+      text: activity.text,
+      detail: activity.detail,
+      timestamp: activity.timestamp || new Date().toISOString(),
+      conversationId: activity.conversationId,
+      isNew: true
+    };
+
+    // Add to all activities (unlimited)
+    setAllActivities(prev => [newActivity, ...prev]);
+
+    // Add to displayed activities (limited)
     setActivities(prev => {
-      const newActivities = [{
-        id: activity.id || Date.now() + Math.random(),
-        type: activity.type,
-        text: activity.text,
-        detail: activity.detail,
-        timestamp: activity.timestamp || new Date().toISOString(),
-        conversationId: activity.conversationId,
-        isNew: true
-      }, ...prev];
-      
-      // Limit to maxItems
+      const newActivities = [newActivity, ...prev];
       return newActivities.slice(0, maxItems);
     });
 
     // Remove "new" flag after animation
     setTimeout(() => {
       setActivities(prev => 
+        prev.map(a => ({ ...a, isNew: false }))
+      );
+      setAllActivities(prev => 
         prev.map(a => ({ ...a, isNew: false }))
       );
     }, 2000);
@@ -250,6 +320,18 @@ const RecentActivitiesCard = ({ maxItems = 10 }) => {
    */
   const handleClearAll = () => {
     setActivities([]);
+    setAllActivities([]);
+  };
+
+  /**
+   * Open/Close modal handlers
+   */
+  const handleOpenModal = () => {
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
   };
 
   return (
@@ -272,7 +354,9 @@ const RecentActivitiesCard = ({ maxItems = 10 }) => {
               Clear
             </button>
           )}
-          <span className="dark-activity-action">View all</span>
+          <button className="dark-activity-action" onClick={handleOpenModal}>
+            View all
+          </button>
         </div>
       </div>
       <div className="dark-activity-list">
@@ -288,6 +372,14 @@ const RecentActivitiesCard = ({ maxItems = 10 }) => {
           ))
         )}
       </div>
+      
+      {/* Activities Modal */}
+      <ActivitiesModal 
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        activities={allActivities}
+        formatTime={formatTime}
+      />
     </div>
   );
 };
