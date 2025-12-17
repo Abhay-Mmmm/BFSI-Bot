@@ -261,7 +261,7 @@ class ConversationEngine:
     
     def _requirements_complete(self, conversation: Dict[str, Any]) -> bool:
         """Check if loan requirements are complete"""
-        required_fields = ["loan_amount", "salary", "employment_status", "city"]
+        required_fields = ["applicant_name", "loan_amount", "salary", "employment_status", "city"]
         loan_application = conversation.get("loan_application", {})
         
         return all(field in loan_application for field in required_fields)
@@ -942,6 +942,7 @@ I'm your AI assistant, here to help you with **Personal Loan Applications**.
 
 📌 **I'll need a few details to get started:**
 
+- � **Your Name:** What should I call you?
 - 💰 **Loan Amount:** How much do you wish to borrow?
 - 💵 **Monthly Income:** Your current salary
 - 💼 **Employment Type:** Salaried / Contract / Self-Employed
@@ -951,13 +952,13 @@ I'm your AI assistant, here to help you with **Personal Loan Applications**.
 
 ✨ **Quick Tip:** You can provide all details in one message for faster processing!
 
-> Example: *"1.5 lakhs, 60k per month, salaried, Trivandrum"*
+> Example: *"I'm Rahul, need 1.5 lakhs, earning 60k per month, salaried, Trivandrum"*
 
-How can I help you today?"""
+What's your name and how can I help you today?"""
         return {
             "response": response,
             "next_action": "gather_requirements",
-            "actions": ["ask_loan_amount", "ask_salary", "ask_employment", "ask_city"]
+            "actions": ["ask_name", "ask_loan_amount", "ask_salary", "ask_employment", "ask_city"]
         }
     
     def _handle_needs_assessment(self, conversation_id: str, message: str) -> Dict[str, Any]:
@@ -970,18 +971,20 @@ How can I help you today?"""
         loan_app = conversation["loan_application"]
         
         # Check what information we have collected
+        has_name = "applicant_name" in loan_app
         has_loan_amount = "loan_amount" in loan_app
         has_salary = "salary" in loan_app
         has_employment = "employment_status" in loan_app
         has_city = "city" in loan_app
         
         # Build detailed response based on what we collected
-        if has_loan_amount and has_salary and has_employment and has_city:
+        if has_name and has_loan_amount and has_salary and has_employment and has_city:
             # All requirements collected - confirm and ASK before proceeding
-            response = f"""✅ **Perfect! I've collected all your details:**
+            response = f"""✅ **Perfect, {loan_app['applicant_name']}! I've collected all your details:**
 
 | Detail | Value |
 |--------|-------|
+| 👤 Name | {loan_app['applicant_name']} |
 | 💰 Loan Amount | ₹{loan_app['loan_amount']:,} |
 | 💵 Monthly Salary | ₹{loan_app['salary']:,} |
 | 💼 Employment | {loan_app['employment_status'].replace('_', ' ').title()} |
@@ -1006,6 +1009,8 @@ How can I help you today?"""
         else:
             # Build specific request for missing information
             missing = []
+            if not has_name:
+                missing.append("👤 Your name")
             if not has_loan_amount:
                 missing.append("💰 Loan amount you need")
             if not has_salary:
@@ -1016,6 +1021,8 @@ How can I help you today?"""
                 missing.append("🏙️ City of residence")
             
             collected_info = []
+            if has_name:
+                collected_info.append(f"✅ Name: {loan_app['applicant_name']}")
             if has_loan_amount:
                 collected_info.append(f"✅ Loan Amount: ₹{loan_app['loan_amount']:,}")
             if has_salary:
@@ -1103,6 +1110,24 @@ How can I help you today?"""
         
         # Extract loan amount with lakhs/crores/K support
         import re
+        
+        # Extract applicant name
+        if "applicant_name" not in loan_app:
+            # Pattern: "I'm <name>", "I am <name>", "my name is <name>", "this is <name>", "call me <name>"
+            name_patterns = [
+                r"(?:i'm|i am|my name is|this is|call me|it's|its)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
+                r"(?:i'm|i am|my name is|this is|call me|it's|its)\s+([a-z]+(?:\s+[a-z]+)?)",
+                r"^([A-Z][a-z]+)(?:\s+here|\s*,)",  # "Rahul here" or "Rahul,"
+            ]
+            for pattern in name_patterns:
+                match = re.search(pattern, message, re.IGNORECASE)
+                if match:
+                    name = match.group(1).strip()
+                    # Filter out common non-name words
+                    non_names = ['salaried', 'working', 'looking', 'need', 'want', 'earning', 'from', 'in', 'at', 'a', 'an', 'the', 'interested', 'self', 'employed', 'loan', 'help', 'money', 'personal']
+                    if name.lower() not in non_names and len(name) >= 2:
+                        loan_app["applicant_name"] = name.title()
+                        break
         
         # Check for lakhs format (e.g., "2 lakhs", "2.5 lakh", "1.5 lakhs")
         # This will match the FIRST lakh amount (typically the loan amount)

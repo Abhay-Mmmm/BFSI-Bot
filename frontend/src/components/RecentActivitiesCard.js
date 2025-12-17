@@ -12,6 +12,7 @@ import eventBus, { EVENT_TYPES } from '../services/eventBus';
 const RecentActivitiesCard = ({ maxItems = 10 }) => {
   const [activities, setActivities] = useState([]);
   const [isConnected, setIsConnected] = useState(true);
+  const [currentClientName, setCurrentClientName] = useState(null);
 
   /**
    * Format timestamp for display
@@ -133,9 +134,10 @@ const RecentActivitiesCard = ({ maxItems = 10 }) => {
   useEffect(() => {
     // Subscribe to chat message sent
     const unsubSent = eventBus.subscribe(EVENT_TYPES.CHAT_MESSAGE_SENT, (data) => {
+      const displayName = data.clientName || currentClientName || 'Client';
       addActivity({
         type: 'message_sent',
-        text: `Client sent message`,
+        text: `${displayName} sent message`,
         detail: data.text?.substring(0, 50) + (data.text?.length > 50 ? '...' : ''),
         timestamp: data.timestamp,
         conversationId: data.conversationId
@@ -144,9 +146,14 @@ const RecentActivitiesCard = ({ maxItems = 10 }) => {
 
     // Subscribe to chat message received
     const unsubReceived = eventBus.subscribe(EVENT_TYPES.CHAT_MESSAGE_RECEIVED, (data) => {
+      const displayName = data.clientName || currentClientName || 'client';
+      // Update current client name if received
+      if (data.clientName && !currentClientName) {
+        setCurrentClientName(data.clientName);
+      }
       addActivity({
         type: 'message_received',
-        text: `AI responded to client`,
+        text: `AI responded to ${displayName}`,
         detail: data.text?.substring(0, 50) + (data.text?.length > 50 ? '...' : ''),
         timestamp: data.timestamp,
         conversationId: data.conversationId
@@ -155,6 +162,8 @@ const RecentActivitiesCard = ({ maxItems = 10 }) => {
 
     // Subscribe to conversation started
     const unsubStarted = eventBus.subscribe(EVENT_TYPES.CHAT_CONVERSATION_STARTED, (data) => {
+      // Reset client name for new conversation
+      setCurrentClientName(null);
       addActivity({
         type: 'conversation_started',
         text: `New conversation started`,
@@ -166,9 +175,10 @@ const RecentActivitiesCard = ({ maxItems = 10 }) => {
 
     // Subscribe to document uploaded
     const unsubDoc = eventBus.subscribe(EVENT_TYPES.CHAT_DOCUMENT_UPLOADED, (data) => {
+      const displayName = data.clientName || currentClientName || 'Client';
       addActivity({
         type: 'document_uploaded',
-        text: `Document uploaded`,
+        text: `${displayName} uploaded document`,
         detail: data.filename || 'Document',
         timestamp: data.timestamp,
         conversationId: data.conversationId
@@ -177,13 +187,28 @@ const RecentActivitiesCard = ({ maxItems = 10 }) => {
 
     // Subscribe to loan status updates
     const unsubLoan = eventBus.subscribe(EVENT_TYPES.LOAN_STATUS_UPDATED, (data) => {
+      const displayName = data.clientName || currentClientName || 'Client';
       addActivity({
         type: 'loan_status',
-        text: `Loan status updated`,
+        text: `${displayName}'s loan status updated`,
         detail: data.status || data.decision || 'Status changed',
         timestamp: data.timestamp,
         conversationId: data.conversationId
       });
+    });
+
+    // Subscribe to client name updates
+    const unsubName = eventBus.subscribe(EVENT_TYPES.CLIENT_NAME_UPDATED, (data) => {
+      if (data.name) {
+        setCurrentClientName(data.name);
+        addActivity({
+          type: 'conversation_started',
+          text: `Client identified`,
+          detail: `Name: ${data.name}`,
+          timestamp: data.timestamp,
+          conversationId: data.conversationId
+        });
+      }
     });
 
     setIsConnected(true);
@@ -195,8 +220,9 @@ const RecentActivitiesCard = ({ maxItems = 10 }) => {
       unsubStarted();
       unsubDoc();
       unsubLoan();
+      unsubName();
     };
-  }, [addActivity]);
+  }, [addActivity, currentClientName]);
 
   /**
    * Clear all activities

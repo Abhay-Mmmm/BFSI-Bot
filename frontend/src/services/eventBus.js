@@ -155,7 +155,8 @@ export const EVENT_TYPES = {
   CHAT_MESSAGE_RECEIVED: 'chat:message:received',
   CHAT_CONVERSATION_STARTED: 'chat:conversation:started',
   CHAT_DOCUMENT_UPLOADED: 'chat:document:uploaded',
-  LOAN_STATUS_UPDATED: 'loan:status:updated'
+  LOAN_STATUS_UPDATED: 'loan:status:updated',
+  CLIENT_NAME_UPDATED: 'client:name:updated'
 };
 
 export default eventBus;

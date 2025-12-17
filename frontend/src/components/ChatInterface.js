@@ -20,6 +20,7 @@ const ChatInterface = () => {
   const [showUpload, setShowUpload] = useState(false);
   const [showSanctionModal, setShowSanctionModal] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
+  const [clientName, setClientName] = useState(null);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -169,6 +170,7 @@ const ChatInterface = () => {
     eventBus.emit(EVENT_TYPES.CHAT_MESSAGE_SENT, {
       text: currentInput,
       conversationId: conversationId,
+      clientName: clientName,
       timestamp: new Date().toISOString()
     });
     
@@ -254,6 +256,18 @@ const ChatInterface = () => {
         setSuggestions(response.data.suggestions);
       }
 
+      // Check for client name in response (from loan_application or applicant_name)
+      if (response.data.loan_application?.applicant_name && !clientName) {
+        const name = response.data.loan_application.applicant_name;
+        setClientName(name);
+        // Emit client name update for real-time sync
+        eventBus.emit(EVENT_TYPES.CLIENT_NAME_UPDATED, {
+          name: name,
+          conversationId: conversationId,
+          timestamp: new Date().toISOString()
+        });
+      }
+
       console.log('Adding assistant message to chat:', assistantMessage);
       setMessages(prev => [...prev, assistantMessage]);
       
@@ -261,6 +275,7 @@ const ChatInterface = () => {
       eventBus.emit(EVENT_TYPES.CHAT_MESSAGE_RECEIVED, {
         text: response.data.response,
         conversationId: conversationId,
+        clientName: clientName || response.data.loan_application?.applicant_name,
         timestamp: new Date().toISOString()
       });
       
