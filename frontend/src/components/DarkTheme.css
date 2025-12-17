@@ -1333,10 +1333,23 @@
   background: var(--dark-gradient-accent);
   color: var(--dark-text-primary);
   border-radius: 16px 16px 4px 16px;
-  padding: 12px 16px;
+  padding: 14px 18px;
+  min-width: 60px;
   max-width: 70%;
   margin-left: auto;
   box-shadow: var(--dark-shadow-md);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.dark-theme .message.user .message-content p {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.dark-theme .message.user .markdown-content p:last-child {
+  margin-bottom: 0;
 }
 
 .dark-theme .message.assistant .message-content {
@@ -1484,22 +1497,33 @@
 
 /* Suggestions */
 .dark-theme .suggestions-container {
+  background: var(--dark-bg-card);
+  border: 1px solid var(--dark-border-primary);
+  border-radius: var(--dark-radius-md);
+  padding: 12px 16px;
   margin-bottom: 12px;
 }
 
 .dark-theme .suggestions-label {
-  color: var(--dark-text-tertiary);
-  font-size: 0.8125rem;
-  margin-bottom: 8px;
+  color: var(--dark-accent-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .dark-theme .suggestion-chip {
-  background: var(--dark-bg-elevated);
-  border: 1px solid var(--dark-border-primary);
+  background: var(--dark-bg-secondary);
+  border: 1px solid var(--dark-accent-primary);
   border-radius: var(--dark-radius-full);
-  color: var(--dark-text-secondary);
-  padding: 6px 14px;
+  color: var(--dark-accent-primary);
+  padding: 8px 16px;
   font-size: 0.8125rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all var(--dark-transition-fast);
 }
@@ -1507,7 +1531,7 @@
 .dark-theme .suggestion-chip:hover {
   background: var(--dark-accent-primary);
   border-color: var(--dark-accent-primary);
-  color: var(--dark-text-primary);
+  color: white;
   transform: translateY(-1px);
 }
 
@@ -2420,3 +2444,482 @@
 .dark-theme .bg-elevated { background: var(--dark-bg-elevated); }
 
 .dark-theme .border-primary { border-color: var(--dark-border-primary); }
+
+/* ==========================================================================
+   REAL-TIME ACTIVITY CARD ENHANCEMENTS
+   ========================================================================== */
+
+/* Activity header with live status */
+.dark-activity-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.activity-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10B981;
+}
+
+.activity-status.disconnected {
+  background: rgba(107, 114, 128, 0.15);
+  color: #6B7280;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse-status 2s ease-in-out infinite;
+}
+
+.activity-status.disconnected .status-dot {
+  animation: none;
+}
+
+@keyframes pulse-status {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Activity actions */
+.dark-activity-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.activity-clear-btn {
+  font-size: 0.75rem;
+  color: var(--dark-text-muted);
+  background: transparent;
+  border: 1px solid var(--dark-border-primary);
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.activity-clear-btn:hover {
+  color: var(--dark-text-secondary);
+  border-color: var(--dark-border-accent);
+}
+
+/* New activity animation */
+.activity-new {
+  animation: slideIn 0.3s ease-out, highlight 2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes highlight {
+  0% { background: rgba(59, 130, 246, 0.15); }
+  100% { background: transparent; }
+}
+
+/* Activity detail styling */
+.activity-detail {
+  color: var(--dark-text-tertiary);
+  font-weight: 400;
+}
+
+/* Empty state styling */
+.activity-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  text-align: center;
+}
+
+.activity-empty-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(107, 114, 128, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dark-text-muted);
+  margin-bottom: 16px;
+}
+
+.activity-empty-text {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--dark-text-secondary);
+  margin: 0 0 4px 0;
+}
+
+.activity-empty-hint {
+  font-size: 0.8125rem;
+  color: var(--dark-text-muted);
+  margin: 0;
+}
+
+/* ==========================================================================
+   SWITCH MODE BUTTON
+   ========================================================================== */
+
+.switch-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 20px;
+  margin-bottom: 12px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: var(--dark-radius-sm);
+  color: var(--dark-accent-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--dark-transition-fast);
+}
+
+.switch-mode-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.4);
+  transform: translateY(-2px);
+}
+
+.switch-mode-btn svg {
+  flex-shrink: 0;
+}
+
+.sidebar.collapsed .switch-mode-btn {
+  justify-content: center;
+  padding: 12px;
+}
+
+.sidebar.collapsed .switch-mode-btn .nav-text {
+  display: none;
+}
+
+/* ==========================================================================
+   MISSING DARK THEME OVERRIDES - UI CONSISTENCY FIX
+   ========================================================================== */
+
+/* Verification Cards - Complete Dark Theme */
+.dark-theme .verification-header {
+  background: var(--dark-bg-tertiary);
+  border-bottom: 1px solid var(--dark-border-primary);
+  color: var(--dark-text-primary);
+}
+
+.dark-theme .verification-body {
+  background: transparent;
+}
+
+.dark-theme .verification-item {
+  background: var(--dark-bg-tertiary);
+  border-radius: var(--dark-radius-sm);
+}
+
+.dark-theme .verification-label {
+  color: var(--dark-text-tertiary);
+}
+
+.dark-theme .verification-value {
+  color: var(--dark-text-primary);
+}
+
+/* Modal Dark Theme Overrides */
+.dark-theme .modal-overlay {
+  background-color: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+}
+
+.dark-theme .modal-content {
+  background-color: var(--dark-bg-card);
+  border: 1px solid var(--dark-border-primary);
+  box-shadow: var(--dark-shadow-xl);
+}
+
+.dark-theme .modal-header {
+  border-bottom: 1px solid var(--dark-border-primary);
+}
+
+.dark-theme .modal-header h2 {
+  color: var(--dark-text-primary);
+}
+
+.dark-theme .modal-header h3 {
+  color: var(--dark-text-tertiary);
+}
+
+.dark-theme .modal-body {
+  background-color: var(--dark-bg-tertiary);
+  border: 1px solid var(--dark-border-primary);
+}
+
+.dark-theme .modal-footer {
+  border-top: 1px solid var(--dark-border-primary);
+}
+
+/* Toggle Switch Dark Theme */
+.dark-theme .toggle-switch label {
+  background-color: var(--dark-bg-elevated);
+}
+
+.dark-theme .toggle-switch label:before {
+  background-color: var(--dark-text-tertiary);
+}
+
+.dark-theme .toggle-switch input:checked + label {
+  background-color: var(--dark-accent-primary);
+}
+
+.dark-theme .toggle-switch input:checked + label:before {
+  background-color: white;
+}
+
+/* Button Secondary Dark Theme */
+.dark-theme .btn-secondary {
+  background-color: var(--dark-bg-elevated);
+  color: var(--dark-text-primary);
+  border: 1px solid var(--dark-border-primary);
+}
+
+.dark-theme .btn-secondary:hover {
+  background-color: var(--dark-bg-card-hover);
+  border-color: var(--dark-border-accent);
+}
+
+/* Button Danger Dark Theme */
+.dark-theme .btn-danger {
+  background-color: var(--dark-error);
+  color: white;
+}
+
+.dark-theme .btn-danger:hover {
+  background-color: #DC2626;
+}
+
+/* Suggestions Container in Modals/Forms */
+.dark-theme .suggestions-container {
+  background-color: var(--dark-bg-tertiary);
+  border: 1px solid var(--dark-border-primary);
+}
+
+.dark-theme .suggestions-label {
+  color: var(--dark-text-tertiary);
+}
+
+/* Status Badges Dark Theme */
+.dark-theme .status-success {
+  background-color: var(--dark-success-muted);
+  color: var(--dark-success);
+}
+
+.dark-theme .status-error,
+.dark-theme .status-rejected {
+  background-color: var(--dark-error-muted);
+  color: var(--dark-error);
+}
+
+.dark-theme .status-warning,
+.dark-theme .status-pending {
+  background-color: var(--dark-warning-muted);
+  color: var(--dark-warning);
+}
+
+/* Documents Summary */
+.dark-theme .documents-summary li {
+  color: var(--dark-text-secondary);
+  border-bottom-color: var(--dark-border-primary);
+}
+
+/* Settings Actions Border */
+.dark-theme .settings-actions {
+  border-top-color: var(--dark-border-primary);
+}
+
+/* Loan Summary Table */
+.dark-theme .loan-summary-table tr:not(:last-child) {
+  border-bottom-color: var(--dark-border-primary);
+}
+
+.dark-theme .loan-summary-table .total-row {
+  border-top-color: var(--dark-border-accent);
+}
+
+/* Amortization Table */
+.dark-theme .amortization-table th {
+  color: var(--dark-text-secondary);
+  background: var(--dark-bg-tertiary);
+}
+
+.dark-theme .amortization-table td {
+  color: var(--dark-text-primary);
+  border-bottom: 1px solid var(--dark-border-primary);
+}
+
+/* Loan Breakdown Panel */
+.dark-theme .loan-breakdown-panel {
+  background: var(--dark-bg-card);
+  border: 1px solid var(--dark-border-primary);
+}
+
+/* ==========================================================================
+   ADDITIONAL DARK THEME OVERRIDES - LOAN STATUS & EMI COMPONENTS
+   ========================================================================== */
+
+/* Status Badges with Specific States */
+.dark-theme .status-badge.approved {
+  background-color: var(--dark-success-muted);
+  color: var(--dark-success);
+}
+
+.dark-theme .status-badge.rejected {
+  background-color: var(--dark-error-muted);
+  color: var(--dark-error);
+}
+
+.dark-theme .status-badge.pending {
+  background-color: var(--dark-warning-muted);
+  color: var(--dark-warning);
+}
+
+/* Sanction Download Section */
+.dark-theme .sanction-download-section {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.dark-theme .download-invoice-btn {
+  background: var(--dark-gradient-success);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.dark-theme .download-invoice-btn:hover {
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.dark-theme .download-hint {
+  color: var(--dark-success);
+}
+
+/* EMI Highlight */
+.dark-theme .emi-highlight {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.dark-theme .emi-label {
+  color: var(--dark-text-tertiary);
+}
+
+.dark-theme .emi-value {
+  color: var(--dark-accent-primary);
+}
+
+.dark-theme .emi-tenure {
+  color: var(--dark-text-muted);
+}
+
+/* Loan Details Row */
+.dark-theme .detail-box {
+  background: var(--dark-bg-tertiary);
+  border: 1px solid var(--dark-border-primary);
+}
+
+.dark-theme .detail-label {
+  color: var(--dark-text-tertiary);
+}
+
+.dark-theme .detail-value {
+  color: var(--dark-text-primary);
+}
+
+/* Cost Breakdown */
+.dark-theme .cost-breakdown {
+  background: var(--dark-bg-tertiary);
+  border: 1px solid var(--dark-border-primary);
+}
+
+.dark-theme .breakdown-title {
+  color: var(--dark-text-primary);
+  border-bottom-color: var(--dark-border-primary);
+}
+
+.dark-theme .breakdown-row {
+  color: var(--dark-text-secondary);
+}
+
+.dark-theme .breakdown-row .amount {
+  color: var(--dark-text-primary);
+}
+
+.dark-theme .breakdown-row .amount.interest {
+  color: var(--dark-warning);
+}
+
+.dark-theme .breakdown-row.total {
+  border-top-color: var(--dark-border-accent);
+}
+
+.dark-theme .breakdown-row.total span {
+  color: var(--dark-text-primary);
+}
+
+.dark-theme .breakdown-row .total-amount {
+  color: var(--dark-accent-primary) !important;
+}
+
+/* Tip Box */
+.dark-theme .tip-box {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.dark-theme .tip-text {
+  color: var(--dark-success);
+}
+
+/* EMI Chart Container */
+.dark-theme .emi-chart-container {
+  background: var(--dark-bg-card);
+  border: 1px solid var(--dark-border-primary);
+}
+
+.dark-theme .chart-footer {
+  border-top-color: var(--dark-border-primary);
+  color: var(--dark-text-muted);
+}
+
+/* Detailed View Sections */
+.dark-theme .cost-summary-section,
+.dark-theme .amortization-section {
+  background: var(--dark-bg-tertiary);
+  border: 1px solid var(--dark-border-primary);
+}
+
+.dark-theme .cost-summary-section h4,
+.dark-theme .amortization-section h4 {
+  color: var(--dark-text-primary);
+}
+
+/* Breakdown Header */
+.dark-theme .breakdown-header h3 {
+  color: var(--dark-text-primary);
+}

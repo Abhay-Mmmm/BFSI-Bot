@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, LineChart, Line } from 'recharts';
 import Sidebar from './Sidebar';
+import RecentActivitiesCard from './RecentActivitiesCard';
 import './styles.css';
 import './DarkTheme.css';
 
@@ -310,6 +311,65 @@ const TeamDashboard = () => {
                 />
               </LineChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Real-time Activity Section */}
+        <div className="dark-activity-grid" style={{ marginBottom: '24px' }}>
+          <RecentActivitiesCard maxItems={6} />
+          
+          {/* Quick Stats Card */}
+          <div className="dark-activity-card">
+            <div className="dark-activity-header">
+              <h3 className="dark-activity-title">Team Quick Stats</h3>
+              <span className="dark-activity-action">Refresh</span>
+            </div>
+            <div className="dark-activity-list">
+              <div className="dark-activity-item">
+                <div className="dark-activity-icon" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3B82F6' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+                </div>
+                <div className="dark-activity-content">
+                  <p className="dark-activity-text">
+                    <strong>12 agents</strong> currently online
+                  </p>
+                  <span className="dark-activity-time">Active now</span>
+                </div>
+              </div>
+              <div className="dark-activity-item">
+                <div className="dark-activity-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10B981' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+                    <polyline points="17 6 23 6 23 12"/>
+                  </svg>
+                </div>
+                <div className="dark-activity-content">
+                  <p className="dark-activity-text">
+                    <strong>28% conversion</strong> rate this week
+                  </p>
+                  <span className="dark-activity-time">+3% from last week</span>
+                </div>
+              </div>
+              <div className="dark-activity-item">
+                <div className="dark-activity-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                </div>
+                <div className="dark-activity-content">
+                  <p className="dark-activity-text">
+                    <strong>2.4 hours</strong> avg response time
+                  </p>
+                  <span className="dark-activity-time">-18 min from target</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
