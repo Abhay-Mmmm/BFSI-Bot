@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import {
   BarChart,
   Bar,
@@ -10,17 +10,29 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-const EMIChart = ({ data }) => {
+// Memoized tooltip style - defined outside component
+const tooltipStyle = {
+  backgroundColor: '#1F2937',
+  border: '1px solid rgba(255, 255, 255, 0.08)',
+  borderRadius: '8px',
+  color: '#F3F4F6'
+};
+
+const EMIChart = memo(({ data }) => {
+  // Memoize chart info
+  const chartInfo = useMemo(() => {
+    if (!data || data.length === 0) {
+      return null;
+    }
+    return {
+      emi: data[0]?.emi?.toLocaleString() || 'N/A',
+      monthCount: data.length
+    };
+  }, [data]);
+
   if (!data || data.length === 0) {
     return <div className="emi-chart">No EMI data available</div>;
   }
-
-  const tooltipStyle = {
-    backgroundColor: '#1F2937',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
-    borderRadius: '8px',
-    color: '#F3F4F6'
-  };
 
   return (
     <div className="emi-chart">
@@ -36,11 +48,13 @@ const EMIChart = ({ data }) => {
         </BarChart>
       </ResponsiveContainer>
       <div className="chart-info">
-        <p>Expected monthly EMI: ₹{data[0]?.emi?.toLocaleString() || 'N/A'}</p>
-        <p>Showing first {data.length} months breakdown</p>
+        <p>Expected monthly EMI: ₹{chartInfo.emi}</p>
+        <p>Showing first {chartInfo.monthCount} months breakdown</p>
       </div>
     </div>
   );
-};
+});
+
+EMIChart.displayName = 'EMIChart';
 
 export default EMIChart;

@@ -44,13 +44,6 @@ const Settings = () => {
     <div className="app-container dark-theme">
       <Sidebar />
       <div className="main-content-dashboard">
-        <div className="dashboard-header">
-          <div>
-            <h2>System Settings</h2>
-            <p className="caption text-tertiary">Configure your AI banking assistant parameters</p>
-          </div>
-        </div>
-
         <div className="settings-container">
           <div className="settings-card">
             <h3 className="header-3">AI Model Configuration</h3>

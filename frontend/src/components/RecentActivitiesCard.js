@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import eventBus, { EVENT_TYPES } from '../services/eventBus';
 
 /**
@@ -9,13 +9,105 @@ import eventBus, { EVENT_TYPES } from '../services/eventBus';
  * 
  * This is a FRONTEND-ONLY component with no backend dependencies.
  */
+
+// Memoized activity icons - defined outside component to prevent re-creation
+const ACTIVITY_ICONS = {
+  message_sent: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M22 2L11 13"/>
+      <path d="M22 2L15 22L11 13L2 9L22 2Z"/>
+    </svg>
+  ),
+  message_received: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+  ),
+  conversation_started: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="16"/>
+      <line x1="8" y1="12" x2="16" y2="12"/>
+    </svg>
+  ),
+  document_uploaded: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="12" y1="18" x2="12" y2="12"/>
+      <line x1="9" y1="15" x2="15" y2="15"/>
+    </svg>
+  ),
+  loan_status: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+      <polyline points="22 4 12 14.01 9 11.01"/>
+    </svg>
+  ),
+  default: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="10"/>
+    </svg>
+  )
+};
+
+// Memoized icon styles
+const ICON_STYLES = {
+  message_sent: { background: 'rgba(59, 130, 246, 0.15)', color: '#3B82F6' },
+  message_received: { background: 'rgba(16, 185, 129, 0.15)', color: '#10B981' },
+  conversation_started: { background: 'rgba(139, 92, 246, 0.15)', color: '#8B5CF6' },
+  document_uploaded: { background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B' },
+  loan_status: { background: 'rgba(16, 185, 129, 0.15)', color: '#10B981' },
+  default: { background: 'rgba(107, 114, 128, 0.15)', color: '#6B7280' }
+};
+
+// Memoized Activity Item component
+const ActivityItem = memo(({ activity, formatTime }) => {
+  const iconStyle = ICON_STYLES[activity.type] || ICON_STYLES.default;
+  const icon = ACTIVITY_ICONS[activity.type] || ACTIVITY_ICONS.default;
+  
+  return (
+    <div className={`dark-activity-item ${activity.isNew ? 'activity-new' : ''}`}>
+      <div className="dark-activity-icon" style={iconStyle}>
+        {icon}
+      </div>
+      <div className="dark-activity-content">
+        <p className="dark-activity-text">
+          <strong>{activity.text}</strong>
+          {activity.detail && (
+            <span className="activity-detail"> - {activity.detail}</span>
+          )}
+        </p>
+        <span className="dark-activity-time">{formatTime(activity.timestamp)}</span>
+      </div>
+    </div>
+  );
+});
+
+ActivityItem.displayName = 'ActivityItem';
+
+// Empty state component
+const EmptyState = memo(() => (
+  <div className="activity-empty-state">
+    <div className="activity-empty-icon">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+    </div>
+    <p className="activity-empty-text">No recent activity</p>
+    <p className="activity-empty-hint">Client chat activities will appear here in real-time</p>
+  </div>
+));
+
+EmptyState.displayName = 'EmptyState';
+
 const RecentActivitiesCard = ({ maxItems = 10 }) => {
   const [activities, setActivities] = useState([]);
   const [isConnected, setIsConnected] = useState(true);
   const [currentClientName, setCurrentClientName] = useState(null);
 
   /**
-   * Format timestamp for display
+   * Format timestamp for display - memoized
    */
   const formatTime = useCallback((timestamp) => {
     const date = new Date(timestamp);
@@ -29,77 +121,6 @@ const RecentActivitiesCard = ({ maxItems = 10 }) => {
     if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
     return date.toLocaleDateString();
   }, []);
-
-  /**
-   * Get activity icon based on type
-   */
-  const getActivityIcon = (type) => {
-    switch (type) {
-      case 'message_sent':
-        return (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M22 2L11 13"/>
-            <path d="M22 2L15 22L11 13L2 9L22 2Z"/>
-          </svg>
-        );
-      case 'message_received':
-        return (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
-        );
-      case 'conversation_started':
-        return (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8" x2="12" y2="16"/>
-            <line x1="8" y1="12" x2="16" y2="12"/>
-          </svg>
-        );
-      case 'document_uploaded':
-        return (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="12" y1="18" x2="12" y2="12"/>
-            <line x1="9" y1="15" x2="15" y2="15"/>
-          </svg>
-        );
-      case 'loan_status':
-        return (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-            <polyline points="22 4 12 14.01 9 11.01"/>
-          </svg>
-        );
-      default:
-        return (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10"/>
-          </svg>
-        );
-    }
-  };
-
-  /**
-   * Get activity icon style based on type
-   */
-  const getIconStyle = (type) => {
-    switch (type) {
-      case 'message_sent':
-        return { background: 'rgba(59, 130, 246, 0.15)', color: '#3B82F6' };
-      case 'message_received':
-        return { background: 'rgba(16, 185, 129, 0.15)', color: '#10B981' };
-      case 'conversation_started':
-        return { background: 'rgba(139, 92, 246, 0.15)', color: '#8B5CF6' };
-      case 'document_uploaded':
-        return { background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B' };
-      case 'loan_status':
-        return { background: 'rgba(16, 185, 129, 0.15)', color: '#10B981' };
-      default:
-        return { background: 'rgba(107, 114, 128, 0.15)', color: '#6B7280' };
-    }
-  };
 
   /**
    * Add a new activity to the list
@@ -256,37 +277,14 @@ const RecentActivitiesCard = ({ maxItems = 10 }) => {
       </div>
       <div className="dark-activity-list">
         {activities.length === 0 ? (
-          <div className="activity-empty-state">
-            <div className="activity-empty-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-              </svg>
-            </div>
-            <p className="activity-empty-text">No recent activity</p>
-            <p className="activity-empty-hint">Client chat activities will appear here in real-time</p>
-          </div>
+          <EmptyState />
         ) : (
           activities.map((activity) => (
-            <div 
+            <ActivityItem 
               key={activity.id} 
-              className={`dark-activity-item ${activity.isNew ? 'activity-new' : ''}`}
-            >
-              <div 
-                className="dark-activity-icon"
-                style={getIconStyle(activity.type)}
-              >
-                {getActivityIcon(activity.type)}
-              </div>
-              <div className="dark-activity-content">
-                <p className="dark-activity-text">
-                  <strong>{activity.text}</strong>
-                  {activity.detail && (
-                    <span className="activity-detail"> - {activity.detail}</span>
-                  )}
-                </p>
-                <span className="dark-activity-time">{formatTime(activity.timestamp)}</span>
-              </div>
-            </div>
+              activity={activity} 
+              formatTime={formatTime}
+            />
           ))
         )}
       </div>
@@ -294,4 +292,4 @@ const RecentActivitiesCard = ({ maxItems = 10 }) => {
   );
 };
 
-export default RecentActivitiesCard;
+export default memo(RecentActivitiesCard);

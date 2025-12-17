@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { memo, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie, AreaChart, Area } from 'recharts';
 import Sidebar from './Sidebar';
 import RecentActivitiesCard from './RecentActivitiesCard';
 import './styles.css';
 import './DarkTheme.css';
 
-// Custom Tooltip Component for dark theme
-const CustomTooltip = ({ active, payload, label }) => {
+// Memoized Custom Tooltip Component for dark theme
+const CustomTooltip = memo(({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
       <div className="dark-chart-tooltip">
@@ -22,11 +22,13 @@ const CustomTooltip = ({ active, payload, label }) => {
     );
   }
   return null;
-};
+});
+
+CustomTooltip.displayName = 'CustomTooltip';
 
 const Dashboard = () => {
-  // Keep existing data - NO BACKEND CHANGES
-  const monthlyData = [
+  // Memoize static data - NO BACKEND CHANGES
+  const monthlyData = useMemo(() => [
     { name: 'JAN', loanAmount: 42000000, target: 44000000, applications: 186, approved: 108 },
     { name: 'FEB', loanAmount: 43000000, target: 45000000, applications: 192, approved: 112 },
     { name: 'MAR', loanAmount: 44000000, target: 45000000, applications: 178, approved: 118 },
@@ -39,46 +41,57 @@ const Dashboard = () => {
     { name: 'OCT', loanAmount: 43000000, target: 45000000, applications: 168, approved: 105 },
     { name: 'NOV', loanAmount: 42000000, target: 43500000, applications: 181, approved: 108 },
     { name: 'DEC', loanAmount: 47000000, target: 48000000, applications: 212, approved: 135 },
-  ];
+  ], []);
 
-  const agentData = [
+  const agentData = useMemo(() => [
     { name: 'Rajesh K', loanAmount: 127401610, applications: 45 },
     { name: 'Priya M', loanAmount: 119263200, applications: 42 },
     { name: 'Amit S', loanAmount: 99576880, applications: 38 },
     { name: 'Sunita R', loanAmount: 98714120, applications: 35 },
     { name: 'Vikram P', loanAmount: 96140170, applications: 32 },
-  ];
+  ], []);
 
   // Loan category distribution for donut chart
-  const loanCategories = [
+  const loanCategories = useMemo(() => [
     { name: 'Home Loan', value: 42, color: '#3B82F6' },
     { name: 'Personal Loan', value: 28, color: '#10B981' },
     { name: 'Business Loan', value: 18, color: '#F59E0B' },
     { name: 'Vehicle Loan', value: 12, color: '#8B5CF6' },
-  ];
+  ], []);
 
   // Note: Recent activity is now handled by RecentActivitiesCard with real-time updates
 
-  const formatCurrency = (value) => {
+  const formatCurrency = useCallback((value) => {
     return '₹' + (value / 10000000).toFixed(1) + ' Cr';
-  };
+  }, []);
 
-  const formatCurrencyShort = (value) => {
+  const formatCurrencyShort = useCallback((value) => {
     if (value >= 10000000) {
       return '₹' + (value / 10000000).toFixed(1) + ' Cr';
     } else if (value >= 100000) {
       return '₹' + (value / 100000).toFixed(1) + ' L';
     }
     return '₹' + value.toLocaleString();
-  };
+  }, []);
 
-  // Calculate stats from existing data
-  const totalApplications = 2850;
-  const approvedApplications = 1680;
-  const approvalRate = ((approvedApplications / totalApplications) * 100).toFixed(1);
-  const disbursedAmount = 541095980;
-  const targetAmount = 510000000;
-  const targetAchievement = ((disbursedAmount / targetAmount) * 100).toFixed(0);
+  // Memoize calculated stats
+  const stats = useMemo(() => {
+    const totalApplications = 2850;
+    const approvedApplications = 1680;
+    const approvalRate = ((approvedApplications / totalApplications) * 100).toFixed(1);
+    const disbursedAmount = 541095980;
+    const targetAmount = 510000000;
+    const targetAchievement = ((disbursedAmount / targetAmount) * 100).toFixed(0);
+    
+    return {
+      totalApplications,
+      approvedApplications,
+      approvalRate,
+      disbursedAmount,
+      targetAmount,
+      targetAchievement
+    };
+  }, []);
 
   return (
     <div className="app-container dark-theme">
@@ -135,7 +148,7 @@ const Dashboard = () => {
                 </svg>
               </div>
             </div>
-            <div className="dark-stat-value">{totalApplications.toLocaleString()}</div>
+            <div className="dark-stat-value">{stats.totalApplications.toLocaleString()}</div>
             <div className="dark-stat-footer">
               <span className="dark-stat-change positive">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -157,7 +170,7 @@ const Dashboard = () => {
                 </svg>
               </div>
             </div>
-            <div className="dark-stat-value">{approvalRate}%</div>
+            <div className="dark-stat-value">{stats.approvalRate}%</div>
             <div className="dark-stat-footer">
               <span className="dark-stat-change positive">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -179,7 +192,7 @@ const Dashboard = () => {
                 </svg>
               </div>
             </div>
-            <div className="dark-stat-value">{formatCurrency(disbursedAmount)}</div>
+            <div className="dark-stat-value">{formatCurrency(stats.disbursedAmount)}</div>
             <div className="dark-stat-footer">
               <span className="dark-stat-change positive">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -202,7 +215,7 @@ const Dashboard = () => {
                 </svg>
               </div>
             </div>
-            <div className="dark-stat-value">{targetAchievement}%</div>
+            <div className="dark-stat-value">{stats.targetAchievement}%</div>
             <div className="dark-stat-footer">
               <span className="dark-stat-change positive">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -347,7 +360,7 @@ const Dashboard = () => {
               </svg>
             </div>
             <div className="dark-metric-content">
-              <div className="dark-metric-value">{approvedApplications.toLocaleString()}</div>
+              <div className="dark-metric-value">{stats.approvedApplications.toLocaleString()}</div>
               <div className="dark-metric-label">Approved Applications</div>
               <div className="dark-metric-subtext">+156 this week</div>
             </div>
@@ -361,7 +374,7 @@ const Dashboard = () => {
               </svg>
             </div>
             <div className="dark-metric-content">
-              <div className="dark-metric-value">{formatCurrency(targetAmount)}</div>
+              <div className="dark-metric-value">{formatCurrency(stats.targetAmount)}</div>
               <div className="dark-metric-label">Annual Target</div>
               <div className="dark-metric-subtext">Q4 in progress</div>
             </div>
@@ -561,4 +574,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default memo(Dashboard);

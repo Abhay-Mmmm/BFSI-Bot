@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, memo } from 'react';
 import {
   BarChart,
   Bar,
@@ -10,30 +10,127 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-const LoanStatus = ({ status, emiData }) => {
+// Memoized tooltip styles - defined outside component
+const tooltipStyle = {
+  backgroundColor: '#1F2937', 
+  border: '1px solid rgba(255, 255, 255, 0.08)',
+  borderRadius: '8px',
+  fontSize: '12px',
+  color: '#F3F4F6'
+};
+
+const LoanStatus = memo(({ status, emiData }) => {
   const [viewMode, setViewMode] = useState('quick'); // 'quick' or 'detailed'
 
-  if (!status) {
-    return <div className="loan-status">No loan application data available</div>;
-  }
+  // Memoize all calculations
+  const calculations = useMemo(() => {
+    if (!status) return null;
+    
+    const loanAmount = status.loan_amount || 0;
+    const interestRate = status.interest_rate || 10.5;
+    const tenureMonths = status.tenure_months || 60;
+    const emi = status.emi_amount || Math.round((loanAmount * (interestRate/100/12) * Math.pow(1 + (interestRate/100/12), tenureMonths)) / (Math.pow(1 + (interestRate/100/12), tenureMonths) - 1));
+    
+    const totalPayable = emi * tenureMonths;
+    const totalInterest = totalPayable - loanAmount;
+    const processingFee = Math.round(loanAmount * 0.005);
+    const gst = Math.round(processingFee * 0.18);
+    const totalCost = totalPayable + processingFee + gst;
+    const isSanctioned = status.decision === 'approved' || status.sanction_complete || status.sanction_letter_generated;
+    
+    return {
+      loanAmount,
+      interestRate,
+      tenureMonths,
+      emi,
+      totalPayable,
+      totalInterest,
+      processingFee,
+      gst,
+      totalCost,
+      isSanctioned
+    };
+  }, [status]);
 
-  // Calculate breakdown values
-  const loanAmount = status.loan_amount || 0;
-  const interestRate = status.interest_rate || 10.5;
-  const tenureMonths = status.tenure_months || 60;
-  const emi = status.emi_amount || Math.round((loanAmount * (interestRate/100/12) * Math.pow(1 + (interestRate/100/12), tenureMonths)) / (Math.pow(1 + (interestRate/100/12), tenureMonths) - 1));
-  
-  const totalPayable = emi * tenureMonths;
-  const totalInterest = totalPayable - loanAmount;
-  const processingFee = Math.round(loanAmount * 0.005); // 0.5%
-  const gst = Math.round(processingFee * 0.18); // 18% GST
-  const totalCost = totalPayable + processingFee + gst;
+  // Memoize chart data generation
+  const chartData = useMemo(() => {
+    if (!calculations) return [];
+    
+    const { loanAmount, interestRate, tenureMonths, emi } = calculations;
+    
+    // If emiData is provided from backend, use it directly
+    if (emiData && Array.isArray(emiData) && emiData.length > 0) {
+      return emiData.map(item => ({
+        month: item.month.toString(),
+        principal: item.principal,
+        interest: item.interest,
+        emi: item.emi
+      }));
+    }
+    
+    // Fallback: generate chart data locally
+    const data = [];
+    let balance = loanAmount;
+    const monthlyRate = interestRate / 100 / 12;
+    
+    for (let month = 1; month <= 12; month++) {
+      const interestPaid = Math.round(balance * monthlyRate);
+      const principalPaid = Math.round(emi - interestPaid);
+      balance = balance - principalPaid;
+      
+      data.push({
+        month: month.toString(),
+        principal: principalPaid,
+        interest: interestPaid,
+        emi: emi
+      });
+    }
+    
+    return data;
+  }, [calculations, emiData]);
 
-  // Check if loan is sanctioned
-  const isSanctioned = status.decision === 'approved' || status.sanction_complete || status.sanction_letter_generated;
+  // Memoize amortization schedule
+  const amortizationSchedule = useMemo(() => {
+    if (!calculations) return [];
+    
+    const { loanAmount, interestRate, tenureMonths, emi } = calculations;
+    const schedule = [];
+    let balance = loanAmount;
+    const monthlyRate = interestRate / 100 / 12;
+    
+    const milestones = [1, 12, 24, 36, 48, tenureMonths];
+    
+    milestones.forEach(month => {
+      if (month <= tenureMonths) {
+        const interestPaid = balance * monthlyRate;
+        const principalPaid = emi - interestPaid;
+        balance = balance - principalPaid;
+        
+        schedule.push({
+          month,
+          emi,
+          principal: Math.round(principalPaid),
+          interest: Math.round(interestPaid),
+          balance: Math.max(0, Math.round(balance))
+        });
+      }
+    });
+    
+    return schedule;
+  }, [calculations]);
 
-  // Generate sanction letter PDF
-  const downloadSanctionLetter = () => {
+  // Memoize tooltip formatter
+  const formatTooltipValue = useCallback((value) => `₹${value.toLocaleString('en-IN')}`, []);
+
+  // Memoized view mode handlers
+  const setQuickView = useCallback(() => setViewMode('quick'), []);
+  const setDetailedView = useCallback(() => setViewMode('detailed'), []);
+
+  // Destructure memoized calculations for use in render (safe - calculations is memoized above)
+  const { loanAmount, interestRate, tenureMonths, emi, totalPayable, totalInterest, processingFee, gst, totalCost, isSanctioned } = calculations || {};
+
+  // Generate sanction letter PDF - memoized with useCallback
+  const downloadSanctionLetter = useCallback(() => {
     const today = new Date();
     const formattedDate = today.toLocaleDateString('en-IN', { 
       day: '2-digit', 
@@ -177,69 +274,17 @@ const LoanStatus = ({ status, emiData }) => {
     setTimeout(() => {
       printWindow.print();
     }, 500);
-  };
+  }, [loanAmount, interestRate, tenureMonths, emi, processingFee, totalInterest, totalCost]);
 
-  // Generate chart data for first 12 months
-  const generateChartData = () => {
-    // If emiData is provided from backend, use it directly
-    if (emiData && Array.isArray(emiData) && emiData.length > 0) {
-      return emiData.map(item => ({
-        month: item.month.toString(),
-        principal: item.principal,
-        interest: item.interest,
-        emi: item.emi
-      }));
-    }
-    
-    // Fallback: generate chart data locally
-    const chartData = [];
-    let balance = loanAmount;
-    const monthlyRate = interestRate / 100 / 12;
-    
-    for (let month = 1; month <= 12; month++) {
-      const interestPaid = Math.round(balance * monthlyRate);
-      const principalPaid = Math.round(emi - interestPaid);
-      balance = balance - principalPaid;
-      
-      chartData.push({
-        month: month.toString(),
-        principal: principalPaid,
-        interest: interestPaid,
-        emi: emi
-      });
-    }
-    
-    return chartData;
-  };
+  // Memoized interest savings tip
+  const interestSavingsTip = useMemo(() => 
+    totalInterest ? Math.round(totalInterest * 0.15).toLocaleString('en-IN') : '0',
+  [totalInterest]);
 
-  // Generate amortization schedule for detailed view
-  const generateAmortization = () => {
-    const schedule = [];
-    let balance = loanAmount;
-    const monthlyRate = interestRate / 100 / 12;
-    
-    const milestones = [1, 12, 24, 36, 48, tenureMonths];
-    
-    milestones.forEach(month => {
-      if (month <= tenureMonths) {
-        const interestPaid = balance * monthlyRate;
-        const principalPaid = emi - interestPaid;
-        balance = balance - principalPaid;
-        
-        schedule.push({
-          month,
-          emi,
-          principal: Math.round(principalPaid),
-          interest: Math.round(interestPaid),
-          balance: Math.max(0, Math.round(balance))
-        });
-      }
-    });
-    
-    return schedule;
-  };
-
-  const chartData = generateChartData();
+  // Early return AFTER all hooks are called
+  if (!status) {
+    return <div className="loan-status">No loan application data available</div>;
+  }
 
   return (
     <div className="loan-breakdown-panel">
@@ -273,7 +318,7 @@ const LoanStatus = ({ status, emiData }) => {
       <div className="view-toggle">
         <button
           className={`toggle-btn ${viewMode === 'quick' ? 'active' : ''}`}
-          onClick={() => setViewMode('quick')}
+          onClick={setQuickView}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="3" y="3" width="7" height="7"/>
@@ -285,7 +330,7 @@ const LoanStatus = ({ status, emiData }) => {
         </button>
         <button
           className={`toggle-btn ${viewMode === 'detailed' ? 'active' : ''}`}
-          onClick={() => setViewMode('detailed')}
+          onClick={setDetailedView}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -347,7 +392,7 @@ const LoanStatus = ({ status, emiData }) => {
           <div className="tip-box">
             <span className="tip-icon">💡</span>
             <span className="tip-text">
-              <strong>Tip:</strong> Paying ₹500 extra monthly can save you ~₹{Math.round(totalInterest * 0.15).toLocaleString('en-IN')} in interest
+              <strong>Tip:</strong> Paying ₹500 extra monthly can save you ~₹{interestSavingsTip} in interest
             </span>
           </div>
 
@@ -359,15 +404,9 @@ const LoanStatus = ({ status, emiData }) => {
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3AF' }} />
                 <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} />
                 <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1F2937', 
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    color: '#F3F4F6'
-                  }}
+                  contentStyle={tooltipStyle}
                   labelStyle={{ color: '#F3F4F6' }}
-                  formatter={(value) => `₹${value.toLocaleString('en-IN')}`}
+                  formatter={formatTooltipValue}
                 />
                 <Legend wrapperStyle={{ fontSize: '12px', color: '#9CA3AF' }} />
                 <Bar dataKey="principal" fill="#3B82F6" name="Principal" radius={[2, 2, 0, 0]} />
@@ -429,7 +468,7 @@ const LoanStatus = ({ status, emiData }) => {
                 </tr>
               </thead>
               <tbody>
-                {generateAmortization().map((row, idx) => (
+                {amortizationSchedule.map((row, idx) => (
                   <tr key={idx}>
                     <td>{row.month}</td>
                     <td className="principal">₹{row.principal.toLocaleString('en-IN')}</td>
@@ -454,6 +493,8 @@ const LoanStatus = ({ status, emiData }) => {
       )}
     </div>
   );
-};
+});
+
+LoanStatus.displayName = 'LoanStatus';
 
 export default LoanStatus;
