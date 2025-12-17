@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie, AreaChart, Area } from 'recharts';
 import Sidebar from './Sidebar';
+import RecentActivitiesCard from './RecentActivitiesCard';
 import './styles.css';
 import './DarkTheme.css';
 
@@ -56,14 +57,7 @@ const Dashboard = () => {
     { name: 'Vehicle Loan', value: 12, color: '#8B5CF6' },
   ];
 
-  // Recent activity data (UI only - no backend)
-  const recentActivity = [
-    { id: 1, type: 'approved', text: 'Home loan approved for Rahul Sharma', amount: '₹45.5 Lakhs', time: '2 mins ago' },
-    { id: 2, type: 'pending', text: 'Business loan under review - Priya Electronics', amount: '₹12 Lakhs', time: '15 mins ago' },
-    { id: 3, type: 'new', text: 'New application received from Amit Kumar', amount: '₹8.5 Lakhs', time: '32 mins ago' },
-    { id: 4, type: 'approved', text: 'Vehicle loan disbursed to Sunita Patel', amount: '₹6.2 Lakhs', time: '1 hour ago' },
-    { id: 5, type: 'rejected', text: 'Personal loan rejected - incomplete docs', amount: '₹3 Lakhs', time: '2 hours ago' },
-  ];
+  // Note: Recent activity is now handled by RecentActivitiesCard with real-time updates
 
   const formatCurrency = (value) => {
     return '₹' + (value / 10000000).toFixed(1) + ' Cr';
@@ -492,51 +486,8 @@ const Dashboard = () => {
 
         {/* Activity & Insights Section */}
         <div className="dark-activity-grid">
-          <div className="dark-activity-card">
-            <div className="dark-activity-header">
-              <h3 className="dark-activity-title">Recent Activity</h3>
-              <span className="dark-activity-action">View all</span>
-            </div>
-            <div className="dark-activity-list">
-              {recentActivity.map((activity) => (
-                <div key={activity.id} className="dark-activity-item">
-                  <div className={`dark-activity-icon ${activity.type}`}>
-                    {activity.type === 'approved' && (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="20 6 9 17 4 12"/>
-                      </svg>
-                    )}
-                    {activity.type === 'pending' && (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <polyline points="12 6 12 12 16 14"/>
-                      </svg>
-                    )}
-                    {activity.type === 'rejected' && (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
-                      </svg>
-                    )}
-                    {activity.type === 'new' && (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                        <line x1="12" y1="18" x2="12" y2="12"/>
-                        <line x1="9" y1="15" x2="15" y2="15"/>
-                      </svg>
-                    )}
-                  </div>
-                  <div className="dark-activity-content">
-                    <p className="dark-activity-text">
-                      {activity.text} - <strong>{activity.amount}</strong>
-                    </p>
-                    <span className="dark-activity-time">{activity.time}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* Real-time Recent Activities Card */}
+          <RecentActivitiesCard maxItems={8} />
 
           <div className="dark-activity-card">
             <div className="dark-activity-header">

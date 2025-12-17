@@ -6,6 +6,7 @@ import ChatWindow from './ChatWindow';
 import Sidebar from './Sidebar';
 import LoanStatus from './LoanStatus';
 import DocumentUpload from './DocumentUpload';
+import eventBus, { EVENT_TYPES } from '../services/eventBus';
 
 const ChatInterface = () => {
   const [conversationId, setConversationId] = useState(null);
@@ -48,6 +49,12 @@ const ChatInterface = () => {
       console.log('Got conversation ID:', response.data.conversation_id);
       setConversationId(response.data.conversation_id);
       
+      // Emit conversation started event for real-time sync
+      eventBus.emit(EVENT_TYPES.CHAT_CONVERSATION_STARTED, {
+        conversationId: response.data.conversation_id,
+        timestamp: new Date().toISOString()
+      });
+      
       // Get initial greeting from backend
       console.log('Calling /conversation/query with hello...');
       const greetingResponse = await axios.post('http://localhost:8000/conversation/query', {
@@ -66,6 +73,14 @@ const ChatInterface = () => {
       };
       console.log('Setting greeting message:', greetingMessage);
       setMessages([greetingMessage]);
+      
+      // Emit greeting received event for real-time sync
+      eventBus.emit(EVENT_TYPES.CHAT_MESSAGE_RECEIVED, {
+        text: greetingResponse.data.response,
+        conversationId: response.data.conversation_id,
+        timestamp: new Date().toISOString()
+      });
+      
       console.log('New conversation started successfully!');
     } catch (error) {
       console.error('Error starting conversation:', error);
@@ -149,6 +164,13 @@ const ChatInterface = () => {
     setInputValue('');
     setSuggestions([]); // Clear any suggestions
     setIsLoading(true);
+    
+    // Emit user message sent event for real-time sync
+    eventBus.emit(EVENT_TYPES.CHAT_MESSAGE_SENT, {
+      text: currentInput,
+      conversationId: conversationId,
+      timestamp: new Date().toISOString()
+    });
     
     // Refocus input field after a brief delay
     setTimeout(() => inputRef.current?.focus(), 100);
@@ -234,6 +256,22 @@ const ChatInterface = () => {
 
       console.log('Adding assistant message to chat:', assistantMessage);
       setMessages(prev => [...prev, assistantMessage]);
+      
+      // Emit assistant message received event for real-time sync
+      eventBus.emit(EVENT_TYPES.CHAT_MESSAGE_RECEIVED, {
+        text: response.data.response,
+        conversationId: conversationId,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Emit loan status update if available
+      if (response.data.loan_status || response.data.loan_application) {
+        eventBus.emit(EVENT_TYPES.LOAN_STATUS_UPDATED, {
+          status: response.data.loan_status?.decision || response.data.stage,
+          conversationId: conversationId,
+          timestamp: new Date().toISOString()
+        });
+      }
 
     } catch (error) {
       console.error('Error sending message:', error);
@@ -266,6 +304,14 @@ const ChatInterface = () => {
 
   const handleDocumentUpload = (document) => {
     setDocuments(prev => [...prev, document]);
+    
+    // Emit document uploaded event for real-time sync
+    eventBus.emit(EVENT_TYPES.CHAT_DOCUMENT_UPLOADED, {
+      filename: document.name,
+      type: document.type,
+      conversationId: conversationId,
+      timestamp: new Date().toISOString()
+    });
   };
 
   const adjustTextareaHeight = () => {

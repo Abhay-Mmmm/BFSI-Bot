@@ -2416,3 +2416,173 @@
 .dark-theme .bg-elevated { background: var(--dark-bg-elevated); }
 
 .dark-theme .border-primary { border-color: var(--dark-border-primary); }
+
+/* ==========================================================================
+   REAL-TIME ACTIVITY CARD ENHANCEMENTS
+   ========================================================================== */
+
+/* Activity header with live status */
+.dark-activity-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.activity-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10B981;
+}
+
+.activity-status.disconnected {
+  background: rgba(107, 114, 128, 0.15);
+  color: #6B7280;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse-status 2s ease-in-out infinite;
+}
+
+.activity-status.disconnected .status-dot {
+  animation: none;
+}
+
+@keyframes pulse-status {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Activity actions */
+.dark-activity-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.activity-clear-btn {
+  font-size: 0.75rem;
+  color: var(--dark-text-muted);
+  background: transparent;
+  border: 1px solid var(--dark-border-primary);
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.activity-clear-btn:hover {
+  color: var(--dark-text-secondary);
+  border-color: var(--dark-border-accent);
+}
+
+/* New activity animation */
+.activity-new {
+  animation: slideIn 0.3s ease-out, highlight 2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes highlight {
+  0% { background: rgba(59, 130, 246, 0.15); }
+  100% { background: transparent; }
+}
+
+/* Activity detail styling */
+.activity-detail {
+  color: var(--dark-text-tertiary);
+  font-weight: 400;
+}
+
+/* Empty state styling */
+.activity-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  text-align: center;
+}
+
+.activity-empty-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(107, 114, 128, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dark-text-muted);
+  margin-bottom: 16px;
+}
+
+.activity-empty-text {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--dark-text-secondary);
+  margin: 0 0 4px 0;
+}
+
+.activity-empty-hint {
+  font-size: 0.8125rem;
+  color: var(--dark-text-muted);
+  margin: 0;
+}
+
+/* ==========================================================================
+   SWITCH MODE BUTTON
+   ========================================================================== */
+
+.switch-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 20px;
+  margin-bottom: 12px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: var(--dark-radius-sm);
+  color: var(--dark-accent-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--dark-transition-fast);
+}
+
+.switch-mode-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.4);
+  transform: translateX(2px);
+}
+
+.switch-mode-btn svg {
+  flex-shrink: 0;
+}
+
+.sidebar.collapsed .switch-mode-btn {
+  justify-content: center;
+  padding: 12px;
+}
+
+.sidebar.collapsed .switch-mode-btn .nav-text {
+  display: none;
+}
