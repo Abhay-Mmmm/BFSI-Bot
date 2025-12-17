@@ -64,6 +64,8 @@ class ConversationEngine:
             "messages": [],
             "customer_data": {},
             "loan_application": {},
+            "change_history": [],  # Track all changes for rollback
+            "pending_changes": None,  # Store pending changes awaiting confirmation
             "created_at": datetime.now(),
             "last_updated": datetime.now()
         }
@@ -261,7 +263,7 @@ class ConversationEngine:
     
     def _requirements_complete(self, conversation: Dict[str, Any]) -> bool:
         """Check if loan requirements are complete"""
-        required_fields = ["applicant_name", "loan_amount", "salary", "employment_status", "city"]
+        required_fields = ["loan_amount", "salary", "employment_status", "city"]
         loan_application = conversation.get("loan_application", {})
         
         return all(field in loan_application for field in required_fields)
@@ -519,10 +521,172 @@ class ConversationEngine:
         else:
             return {"response": "I'm here to help you with your personal loan application. How can I assist you today?"}
     
+    def _handle_rollback(self, conversation_id: str, rollback_to: str = None) -> Dict[str, Any]:
+        """Handle rollback of previous changes"""
+        conversation = self.conversations[conversation_id]
+        change_history = conversation.get("change_history", [])
+        
+        if not change_history:
+            return {
+                "response": "❌ **No previous changes to rollback.**\n\nYou haven't made any modifications yet.",
+                "next_action": "continue",
+                "actions": []
+            }
+        
+        loan_app = conversation.get("loan_application", {})
+        
+        if rollback_to and rollback_to != "last_change":
+            # Rollback specific field
+            found = False
+            for i in range(len(change_history) - 1, -1, -1):
+                change = change_history[i]
+                if change["field"] == rollback_to:
+                    # Revert this change
+                    loan_app[change["field"]] = change["old_value"]
+                    change_history.pop(i)
+                    found = True
+                    
+                    response = f"✅ **Rolled back {change['field'].replace('_', ' ').title()}:**\n\n"
+                    
+                    if change["field"] in ["loan_amount", "salary"]:
+                        response += f"• Reverted from ₹{change['new_value']:,} back to ₹{change['old_value']:,}\n\n"
+                    else:
+                        response += f"• Reverted from {change['new_value']} back to {change['old_value']}\n\n"
+                    
+                    response += self._format_customer_details(loan_app)
+                    response += "\n\n**Would you like to proceed with verification using these details?**"
+                    
+                    conversation["awaiting_verification_confirmation"] = True
+                    
+                    return {
+                        "response": response,
+                        "next_action": "await_verification_confirmation",
+                        "actions": ["rollback_applied"]
+                    }
+            
+            if not found:
+                return {
+                    "response": f"❌ No changes found for {rollback_to.replace('_', ' ').title()}.",
+                    "next_action": "continue",
+                    "actions": []
+                }
+        else:
+            # Rollback last change
+            last_change = change_history.pop()
+            loan_app[last_change["field"]] = last_change["old_value"]
+            
+            response = f"✅ **Rolled back last change:**\n\n"
+            
+            field_name = last_change['field'].replace('_', ' ').title()
+            if last_change["field"] in ["loan_amount", "salary"]:
+                response += f"• {field_name}: ~~₹{last_change['new_value']:,}~~ → **₹{last_change['old_value']:,}**\n\n"
+            else:
+                old_formatted = last_change['old_value'].replace('_', ' ').title() if isinstance(last_change['old_value'], str) else last_change['old_value']
+                new_formatted = last_change['new_value'].replace('_', ' ').title() if isinstance(last_change['new_value'], str) else last_change['new_value']
+                response += f"• {field_name}: ~~{new_formatted}~~ → **{old_formatted}**\n\n"
+            
+            response += "**Current Details:**\n"
+            response += self._format_customer_details(loan_app)
+            response += "\n\n**Would you like to proceed with verification?**"
+            
+            conversation["awaiting_verification_confirmation"] = True
+            
+            # Recalculate EMI if loan_amount or salary was rolled back
+            if last_change["field"] in ["loan_amount", "salary"]:
+                loan_amount = loan_app.get("loan_amount", 150000)
+                interest_rate = loan_app.get("interest_rate", 10.5)
+                tenure = loan_app.get("tenure_months", 60)
+                
+                p = loan_amount
+                r = interest_rate / 12 / 100
+                n = tenure
+                emi = p * r * ((1 + r) ** n) / (((1 + r) ** n) - 1) if r > 0 else p / n
+                loan_app["emi_amount"] = round(emi, 2)
+            
+            return {
+                "response": response,
+                "next_action": "await_verification_confirmation",
+                "actions": ["rollback_applied"],
+                "emi_data": self._calculate_emi_breakdown(loan_app.get("loan_amount", 150000), loan_app.get("interest_rate", 10.5)) if loan_app.get("loan_amount") else None
+            }
+    
+    def _format_customer_details(self, loan_app: Dict[str, Any]) -> str:
+        """Format customer details in a clean list"""
+        details = ""
+        if "customer_name" in loan_app:
+            details += f"👤 **Name:** {loan_app['customer_name']}\n"
+        if "loan_amount" in loan_app:
+            details += f"💰 **Loan Amount:** ₹{loan_app['loan_amount']:,}\n"
+        if "salary" in loan_app:
+            details += f"💵 **Monthly Salary:** ₹{loan_app['salary']:,}\n"
+        if "employment_status" in loan_app:
+            details += f"💼 **Employment:** {loan_app['employment_status'].replace('_', ' ').title()}\n"
+        if "city" in loan_app:
+            details += f"🏙️ **City:** {loan_app['city']}\n"
+        if "emi_amount" in loan_app:
+            details += f"💳 **Monthly EMI:** ₹{loan_app['emi_amount']:,.2f}\n"
+        
+        return details.strip()
+    
+    def _calculate_emi_breakdown(self, loan_amount: float, interest_rate: float, num_months: int = 12, custom_emi: float = None) -> List[Dict[str, Any]]:
+        """
+        Calculate EMI breakdown for the first N months
+        Returns array of objects with month, principal, interest, and emi values
+        
+        Args:
+            loan_amount: Principal loan amount
+            interest_rate: Annual interest rate
+            num_months: Number of months to calculate breakdown for (default 12)
+            custom_emi: Optional custom EMI amount (if user specified desired EMI)
+        """
+        # Default tenure to 60 months (5 years) for full loan calculation
+        full_tenure = 60
+        
+        # Calculate monthly EMI
+        P = loan_amount
+        r = interest_rate / 12 / 100  # Monthly interest rate
+        n = full_tenure
+        
+        if custom_emi:
+            # Use the custom EMI specified by user
+            emi = custom_emi
+        else:
+            # Calculate EMI from loan amount
+            if r > 0:
+                emi = P * r * ((1 + r) ** n) / (((1 + r) ** n) - 1)
+            else:
+                emi = P / n
+        
+        emi = round(emi, 2)
+        
+        # Calculate breakdown for first num_months
+        breakdown = []
+        remaining_principal = loan_amount
+        
+        for month in range(1, min(num_months + 1, full_tenure + 1)):
+            # Interest for this month
+            interest_payment = remaining_principal * r
+            
+            # Principal for this month
+            principal_payment = emi - interest_payment
+            
+            # Update remaining principal
+            remaining_principal -= principal_payment
+            
+            breakdown.append({
+                "month": month,
+                "principal": round(principal_payment, 2),
+                "interest": round(interest_payment, 2),
+                "emi": emi
+            })
+        
+        return breakdown
+    
     def _handle_modification_request(self, conversation_id: str, modification_request: Dict[str, Any]) -> Dict[str, Any]:
         """Handle user request to modify loan details"""
         conversation = self.conversations[conversation_id]
         loan_app = conversation.get("loan_application", {})
+        change_history = conversation.get("change_history", [])
         changes = modification_request["changes"]
         
         # Filter out None values from changes - only keep actual modifications
@@ -536,15 +700,19 @@ class ConversationEngine:
                 "actions": []
             }
         
-        # Store old values for comparison
-        old_values = {}
+        # Track changes in history for rollback
         for field, new_value in changes.items():
-            if field in loan_app:
-                old_values[field] = loan_app[field]
+            if field in loan_app and loan_app[field] != new_value:
+                change_history.append({
+                    "timestamp": datetime.now(),
+                    "field": field,
+                    "old_value": loan_app[field],
+                    "new_value": new_value,
+                    "change_type": "modification"
+                })
             loan_app[field] = new_value
         
-        # Update conversation
-        conversation["loan_application"] = loan_app
+        conversation["change_history"] = change_history
         
         # Reset verification and underwriting if already done
         if "verification_complete" in loan_app:
@@ -554,95 +722,63 @@ class ConversationEngine:
             # Reset stage to needs_assessment
             conversation["stage"] = ConversationStage.NEEDS_ASSESSMENT
         
+        # Recalculate EMI if loan_amount or salary changed
+        emi_changed = False
+        if "loan_amount" in changes or "salary" in changes:
+            loan_amount = loan_app.get("loan_amount", 150000)
+            interest_rate = loan_app.get("interest_rate", 10.5)
+            tenure = loan_app.get("tenure_months", 60)
+            
+            p = loan_amount
+            r = interest_rate / 12 / 100
+            n = tenure
+            new_emi = p * r * ((1 + r) ** n) / (((1 + r) ** n) - 1) if r > 0 else p / n
+            loan_app["emi_amount"] = round(new_emi, 2)
+            emi_changed = True
+        
         self.conversations[conversation_id] = conversation
         
         # Build response showing what was changed
-        response = "✅ **Information Updated!**\n\n"
+        response = "✅ **Changes Applied:**\n\n"
         
         field_labels = {
+            "customer_name": "👤 Name",
             "loan_amount": "💰 Loan Amount",
             "salary": "💵 Monthly Salary",
             "employment_status": "💼 Employment Type",
             "city": "🏙️ City"
         }
         
-        for field, new_value in changes.items():
+        # Show changes made
+        for change in change_history[-len(changes):]:  # Get only the latest changes
+            field = change["field"]
             label = field_labels.get(field, field.replace('_', ' ').title())
+            old_val = change["old_value"]
+            new_val = change["new_value"]
             
-            if field == "loan_amount":
-                if field in old_values and old_values[field] is not None:
-                    response += f"{label}: ₹{old_values[field]:,} → **₹{new_value:,}**\n"
-                else:
-                    response += f"{label}: **₹{new_value:,}**\n"
-            elif field == "salary":
-                if field in old_values and old_values[field] is not None:
-                    response += f"{label}: ₹{old_values[field]:,} → **₹{new_value:,}**\n"
-                else:
-                    response += f"{label}: **₹{new_value:,}**\n"
+            if field in ["loan_amount", "salary"]:
+                response += f"• {label}: ~~₹{old_val:,}~~ → **₹{new_val:,}**\n"
             elif field == "employment_status":
-                formatted_value = new_value.replace('_', ' ').title()
-                if field in old_values and old_values[field] is not None:
-                    response += f"{label}: {old_values[field].replace('_', ' ').title()} → **{formatted_value}**\n"
-                else:
-                    response += f"{label}: **{formatted_value}**\n"
+                response += f"• {label}: ~~{old_val.replace('_', ' ').title()}~~ → **{new_val.replace('_', ' ').title()}**\n"
             else:
-                if field in old_values and old_values[field] is not None:
-                    response += f"{label}: {old_values[field]} → **{new_value}**\n"
-                else:
-                    response += f"{label}: **{new_value}**\n"
+                response += f"• {label}: ~~{old_val}~~ → **{new_val}**\n"
         
-        # Check if we have all required fields now
-        has_all = all(field in loan_app for field in ["loan_amount", "salary", "employment_status", "city"])
+        response += "\n**Updated Profile:**\n"
+        response += self._format_customer_details(loan_app)
         
-        if has_all and old_values:
-            response += "\n🔄 **Your details have been updated. I'll now re-verify your eligibility with the new information.**\n"
-            response += "\n📋 **Current Details:**\n"
-            response += f"• Loan Amount: ₹{loan_app['loan_amount']:,}\n"
-            response += f"• Monthly Salary: ₹{loan_app['salary']:,}\n"
-            response += f"• Employment: {loan_app['employment_status'].replace('_', ' ').title()}\n"
-            response += f"• City: {loan_app['city']}\n\n"
-            
-            # Calculate EMI with new details to show impact
-            p = loan_app['loan_amount']
-            r = 10.5 / 12 / 100  # Interest rate
-            n = 60  # Tenure
-            if p > 0:
-                new_emi = p * r * ((1 + r) ** n) / (((1 + r) ** n) - 1)
-                response += f"📊 **Estimated EMI with new details:** ₹{new_emi:,.2f}/month\n\n"
-            
-            response += "✅ **Can I proceed with the verification checking using these updated details?**\n"
-            response += "Type 'yes' or 'ok' to continue, or tell me if you'd like to make any other changes."
-            
-            # Reset flags to allow re-verification
-            loan_app["verification_complete"] = False
-            loan_app["underwriting_complete"] = False
-            loan_app["sanction_complete"] = False
-            
-            # Don't set auto-progress, wait for user confirmation
-        elif has_all:
-            response += "\n✅ **All details collected!**\n"
-            response += "\n📋 **Your Application:**\n"
-            response += f"• Loan Amount: ₹{loan_app['loan_amount']:,}\n"
-            response += f"• Monthly Salary: ₹{loan_app['salary']:,}\n"
-            response += f"• Employment: {loan_app['employment_status'].replace('_', ' ').title()}\n"
-            response += f"• City: {loan_app['city']}\n"
-        else:
-            missing = []
-            if "loan_amount" not in loan_app:
-                missing.append("💰 Loan amount")
-            if "salary" not in loan_app:
-                missing.append("💵 Monthly salary")
-            if "employment_status" not in loan_app:
-                missing.append("💼 Employment type")
-            if "city" not in loan_app:
-                missing.append("🏙️ City")
-            
-            response += f"\n📋 **Still need:** {', '.join(missing)}\n"
+        if emi_changed:
+            response += f"\n\n💡 **Your EMI has been recalculated based on the new details.**"
+        
+        response += "\n\n**Would you like to proceed with verification using these updated details?**"
+        response += "\n_(Type 'yes' to proceed, 'rollback' to undo changes, or make more modifications)_"
+        
+        conversation["awaiting_verification_confirmation"] = True
         
         return {
             "response": response,
-            "next_action": "continue_assessment",
-            "actions": ["update_information"]
+            "next_action": "await_verification_confirmation",
+            "actions": ["show_updated_details"],
+            "emi_data": self._calculate_emi_breakdown(loan_app.get("loan_amount", 150000), loan_app.get("interest_rate", 10.5)) if emi_changed else None
         }
     
     def _handle_emi_adjustment_confirmation(self, conversation_id: str) -> Dict[str, Any]:
@@ -709,7 +845,9 @@ class ConversationEngine:
         return {
             "response": response,
             "next_action": "verify_and_process",
-            "actions": ["loan_adjusted", "start_verification"]
+            "actions": ["loan_adjusted", "start_verification"],
+            "loan_application": loan_app,  # Include updated loan application
+            "emi_data": self._calculate_emi_breakdown(new_loan_amount, interest_rate, custom_emi=hypothetical_emi)
         }
     
     def _handle_explanation_question(self, conversation_id: str, explanation_query: Dict[str, Any]) -> Dict[str, Any]:
@@ -725,6 +863,14 @@ class ConversationEngine:
             # Calculate maximum loan amount for different tenures with this EMI
             tenures = [12, 24, 36, 48, 60]
             r = interest_rate / 12 / 100
+            
+            # Calculate loan amount for 60-month tenure (for EMI breakdown chart)
+            standard_tenure = 60
+            if r > 0:
+                standard_loan_amount = hypothetical_emi * (((1 + r) ** standard_tenure) - 1) / (r * ((1 + r) ** standard_tenure))
+            else:
+                standard_loan_amount = hypothetical_emi * standard_tenure
+            standard_loan_amount = int(standard_loan_amount)
             
             response = f"""💰 **Loan Breakdown for ₹{hypothetical_emi:,} Monthly EMI:**
 
@@ -776,7 +922,8 @@ Would you like to adjust your loan to match this EMI?"""
                 "response": response,
                 "next_action": "continue_conversation",
                 "actions": ["show_hypothetical_breakdown"],
-                "hypothetical_emi": hypothetical_emi
+                "hypothetical_emi": hypothetical_emi,
+                "emi_data": self._calculate_emi_breakdown(standard_loan_amount, interest_rate, custom_emi=hypothetical_emi)
             }
         
         elif explanation_query["type"] == "emi_explanation":
@@ -942,7 +1089,7 @@ I'm your AI assistant, here to help you with **Personal Loan Applications**.
 
 📌 **I'll need a few details to get started:**
 
-- � **Your Name:** What should I call you?
+- 👤 **Your Name:** What should I call you?
 - 💰 **Loan Amount:** How much do you wish to borrow?
 - 💵 **Monthly Income:** Your current salary
 - 💼 **Employment Type:** Salaried / Contract / Self-Employed
@@ -952,13 +1099,13 @@ I'm your AI assistant, here to help you with **Personal Loan Applications**.
 
 ✨ **Quick Tip:** You can provide all details in one message for faster processing!
 
-> Example: *"I'm Rahul, need 1.5 lakhs, earning 60k per month, salaried, Trivandrum"*
+> Example: *"I'm Rajesh, need 1.5 lakhs, 60k per month, salaried, Trivandrum"*
 
-What's your name and how can I help you today?"""
+How can I help you today?"""
         return {
             "response": response,
             "next_action": "gather_requirements",
-            "actions": ["ask_name", "ask_loan_amount", "ask_salary", "ask_employment", "ask_city"]
+            "actions": ["ask_loan_amount", "ask_salary", "ask_employment", "ask_city"]
         }
     
     def _handle_needs_assessment(self, conversation_id: str, message: str) -> Dict[str, Any]:
@@ -971,30 +1118,47 @@ What's your name and how can I help you today?"""
         loan_app = conversation["loan_application"]
         
         # Check what information we have collected
-        has_name = "applicant_name" in loan_app
+        has_name = "customer_name" in loan_app
         has_loan_amount = "loan_amount" in loan_app
         has_salary = "salary" in loan_app
         has_employment = "employment_status" in loan_app
         has_city = "city" in loan_app
         
         # Build detailed response based on what we collected
-        if has_name and has_loan_amount and has_salary and has_employment and has_city:
+        if has_loan_amount and has_salary and has_employment and has_city:
+            # Calculate EMI for the loan
+            loan_amount = loan_app['loan_amount']
+            interest_rate = 10.5  # Default interest rate
+            tenure = 60  # 5 years
+            
+            p = loan_amount
+            r = interest_rate / 12 / 100
+            n = tenure
+            emi = p * r * ((1 + r) ** n) / (((1 + r) ** n) - 1) if r > 0 else p / n
+            emi = round(emi, 2)
+            
+            loan_app["emi_amount"] = emi
+            loan_app["interest_rate"] = interest_rate
+            loan_app["tenure_months"] = tenure
+            
             # All requirements collected - confirm and ASK before proceeding
-            response = f"""✅ **Perfect, {loan_app['applicant_name']}! I've collected all your details:**
+            response = f"""✅ **Perfect! I've collected all your details:**
 
-| Detail | Value |
-|--------|-------|
-| 👤 Name | {loan_app['applicant_name']} |
-| 💰 Loan Amount | ₹{loan_app['loan_amount']:,} |
-| 💵 Monthly Salary | ₹{loan_app['salary']:,} |
-| 💼 Employment | {loan_app['employment_status'].replace('_', ' ').title()} |
-| 🏙️ City | {loan_app['city']} |
+"""
+            if has_name:
+                response += f"👤 **Name:** {loan_app['customer_name']}\n"
+            
+            response += f"""💰 **Loan Amount:** ₹{loan_app['loan_amount']:,}
+💵 **Monthly Salary:** ₹{loan_app['salary']:,}
+💼 **Employment:** {loan_app['employment_status'].replace('_', ' ').title()}
+🏙️ **City:** {loan_app['city']}
+💳 **Estimated Monthly EMI:** ₹{emi:,.2f} _(for 60 months at {interest_rate}% p.a.)_
 
 ---
 
 🔍 **Next Step:** I can now verify your eligibility and check your credit profile.
 
-**Would you like me to proceed with verification?** *(Type "yes" or "proceed" to continue)*"""
+**Would you like me to proceed with verification?** _(Type "yes" or "proceed" to continue)_"""
             
             # Update stage but DON'T auto-advance - wait for user confirmation
             conversation["stage"] = ConversationStage.NEEDS_ASSESSMENT
@@ -1004,7 +1168,8 @@ What's your name and how can I help you today?"""
             return {
                 "response": response,
                 "next_action": "await_verification_confirmation",
-                "actions": ["confirm_details"]
+                "actions": ["confirm_details"],
+                "emi_data": self._calculate_emi_breakdown(loan_amount, interest_rate) if loan_amount else None
             }
         else:
             # Build specific request for missing information
@@ -1022,7 +1187,7 @@ What's your name and how can I help you today?"""
             
             collected_info = []
             if has_name:
-                collected_info.append(f"✅ Name: {loan_app['applicant_name']}")
+                collected_info.append(f"✅ Name: {loan_app['customer_name']}")
             if has_loan_amount:
                 collected_info.append(f"✅ Loan Amount: ₹{loan_app['loan_amount']:,}")
             if has_salary:
@@ -1108,26 +1273,24 @@ What's your name and how can I help you today?"""
         # Simple extraction - in a real system, this would use NLP
         message_lower = message.lower()
         
+        # Extract customer name if not already present
+        import re
+        if "customer_name" not in loan_app:
+            # Look for name patterns: "I am X", "My name is X", "This is X", "X here"
+            name_patterns = [
+                r"(?:i am|i\'m|my name is|this is|call me)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
+                r"^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:here|speaking)",
+                r"(?:hi|hello),?\s+(?:i am|i\'m|this is)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)"
+            ]
+            
+            for pattern in name_patterns:
+                match = re.search(pattern, message)
+                if match:
+                    loan_app["customer_name"] = match.group(1).strip()
+                    break
+        
         # Extract loan amount with lakhs/crores/K support
         import re
-        
-        # Extract applicant name
-        if "applicant_name" not in loan_app:
-            # Pattern: "I'm <name>", "I am <name>", "my name is <name>", "this is <name>", "call me <name>"
-            name_patterns = [
-                r"(?:i'm|i am|my name is|this is|call me|it's|its)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
-                r"(?:i'm|i am|my name is|this is|call me|it's|its)\s+([a-z]+(?:\s+[a-z]+)?)",
-                r"^([A-Z][a-z]+)(?:\s+here|\s*,)",  # "Rahul here" or "Rahul,"
-            ]
-            for pattern in name_patterns:
-                match = re.search(pattern, message, re.IGNORECASE)
-                if match:
-                    name = match.group(1).strip()
-                    # Filter out common non-name words
-                    non_names = ['salaried', 'working', 'looking', 'need', 'want', 'earning', 'from', 'in', 'at', 'a', 'an', 'the', 'interested', 'self', 'employed', 'loan', 'help', 'money', 'personal']
-                    if name.lower() not in non_names and len(name) >= 2:
-                        loan_app["applicant_name"] = name.title()
-                        break
         
         # Check for lakhs format (e.g., "2 lakhs", "2.5 lakh", "1.5 lakhs")
         # This will match the FIRST lakh amount (typically the loan amount)
@@ -1284,6 +1447,16 @@ What's your name and how can I help you today?"""
             message_lower = message.lower().strip()
             is_yes = any(word in message_lower for word in ['yes', 'yeah', 'yep', 'ok', 'okay', 'sure', 'proceed', 'go ahead', 'continue', 'do it', 'please'])
             is_no = message_lower in ['no', 'nope', 'nah', 'cancel', 'stop']
+            
+            # Check for pending EMI adjustment FIRST (higher priority than verification)
+            if conversation.get("pending_emi_adjustment") and is_yes:
+                print(f"💰 User confirmed EMI adjustment - applying changes...")
+                # Clear any awaiting flags since we're processing EMI adjustment
+                conversation.pop("awaiting_verification_confirmation", None)
+                conversation.pop("awaiting_underwriting_confirmation", None)
+                conversation.pop("awaiting_sanction_confirmation", None)
+                self.conversations[conversation_id] = conversation
+                return self._handle_emi_adjustment_confirmation(conversation_id)
             
             # Check for awaiting verification confirmation
             if conversation.get("awaiting_verification_confirmation"):
@@ -1476,6 +1649,12 @@ What's your name and how can I help you today?"""
                     print(f"⚠️  No data extracted, falling back to needs_assessment")
                     conversation["stage"] = ConversationStage.NEEDS_ASSESSMENT
                     return self._handle_needs_assessment(conversation_id, message)
+            
+            elif handler == "rollback":
+                # Handle rollback of changes
+                rollback_to = analysis.get("rollback_to")
+                print(f"🔄 Rollback requested for: {rollback_to or 'last change'}")
+                return self._handle_rollback(conversation_id, rollback_to)
             
             elif handler == "objection":
                 return self._handle_objection({"type": "general_concern", "message": message})

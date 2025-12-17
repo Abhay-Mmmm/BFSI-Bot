@@ -10,7 +10,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-const LoanStatus = ({ status }) => {
+const LoanStatus = ({ status, emiData }) => {
   const [viewMode, setViewMode] = useState('quick'); // 'quick' or 'detailed'
 
   if (!status) {
@@ -181,6 +181,17 @@ const LoanStatus = ({ status }) => {
 
   // Generate chart data for first 12 months
   const generateChartData = () => {
+    // If emiData is provided from backend, use it directly
+    if (emiData && Array.isArray(emiData) && emiData.length > 0) {
+      return emiData.map(item => ({
+        month: item.month.toString(),
+        principal: item.principal,
+        interest: item.interest,
+        emi: item.emi
+      }));
+    }
+    
+    // Fallback: generate chart data locally
     const chartData = [];
     let balance = loanAmount;
     const monthlyRate = interestRate / 100 / 12;

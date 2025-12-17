@@ -5,3 +5,26 @@ backend/.env.example.env
 
 .cache*
 node_modules/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# ChromaDB and database files
+backend/chroma_data/
+*.sqlite3
+*.db
+
+# Build directories
+build/
+dist/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
