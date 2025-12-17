@@ -1,8 +1,10 @@
+# Environment files
 *.env
 .env.*
 backend/.env
 backend/.env.example.env
 
+# Cache
 .cache*
 node_modules/
 
@@ -12,6 +14,8 @@ __pycache__/
 *$py.class
 *.so
 .Python
+.pytest_cache/
+.mypy_cache/
 
 # ChromaDB and database files
 backend/chroma_data/
@@ -28,3 +32,35 @@ dist/
 .idea/
 *.swp
 *.swo
+
+# Temporary files and folders
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+*~
+
+# Uploads (user uploaded files)
+backend/uploads/
+
+# Logs
+*.log
+logs/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Coverage reports
+htmlcov/
+.coverage
+coverage.xml

@@ -19,7 +19,6 @@ function App() {
             
             {/* Client Side Routes */}
             <Route path="/chat" element={<ChatInterface />} />
-            <Route path="/conversations" element={<ChatInterface />} />
             
             {/* Sales Agent Side Routes */}
             <Route path="/dashboard" element={<Dashboard />} />
