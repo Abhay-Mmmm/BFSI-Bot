@@ -59,9 +59,10 @@ const Sidebar = ({ onNewChat }) => {
               className={isActive('/') ? 'active' : ''}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                <path d="M7 16V4m0 0L3 8m4-4l4 4"/>
+                <path d="M17 8v12m0 0l4-4m-4 4l-4-4"/>
               </svg>
-              <span className="nav-text">Conversations</span>
+              <span className="nav-text">Switch Mode</span>
             </Link>
           </li>
           <li>
