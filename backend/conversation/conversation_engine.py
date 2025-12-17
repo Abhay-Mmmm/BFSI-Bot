@@ -256,10 +256,15 @@ class ConversationEngine:
             "pune", "trivandrum", "thiruvananthapuram", "kochi", "cochin"
         ])
         
+        # Check for name introduction
+        name_keywords = ["i am", "i'm", "my name is", "call me", "this is", "hello, i"]
+        has_name = any(keyword in message_lower for keyword in name_keywords)
+        
         # Message is likely about loan requirements if:
         # 1. Has explicit loan keyword, OR
-        # 2. Has numeric amounts AND (requirements OR city)
-        return has_loan_keyword or (has_numeric_amount and (has_requirement or has_city))
+        # 2. Has numeric amounts AND (requirements OR city), OR
+        # 3. User is introducing themselves (has name)
+        return has_loan_keyword or (has_numeric_amount and (has_requirement or has_city)) or has_name
     
     def _requirements_complete(self, conversation: Dict[str, Any]) -> bool:
         """Check if loan requirements are complete"""

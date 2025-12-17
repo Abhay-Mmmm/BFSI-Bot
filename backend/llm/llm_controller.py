@@ -94,6 +94,7 @@ Handler Selection Logic:
    - "change my salary to X" → next_handler: "modification"
 
 4. If providing loan details:
+   - User introduces themselves ("I am X") → intent: "provide_loan_details", next_handler: "needs_assessment"
    - Missing required fields → next_handler: "needs_assessment"
    - All fields present, not verified → next_handler: "verification"
    - Verified, not underwritten → next_handler: "underwriting"
