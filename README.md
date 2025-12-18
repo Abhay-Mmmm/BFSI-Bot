@@ -305,6 +305,23 @@ Toggle between modes using the **Switch Mode** button in the sidebar.
 
 ---
 
+## 🔴 Known Limitations (Still to Fix)
+
+### High Priority:
+1. Dashboard uses mock data - needs real API integration
+2. Team Dashboard uses mock data
+3. Sanction letter generation has hardcoded data
+4. No authentication system
+5. No user management
+
+### Medium Priority:
+6. No database persistence (uses in-memory storage)
+7. No email/SMS notifications
+8. No real credit bureau integration
+9. No CRM integration (uses mock)
+
+---
+
 ## 🤝 Contributing
 
 1. Fork the repository
