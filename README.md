@@ -135,6 +135,7 @@ uvicorn main:app --reload
 **Terminal 2 - Frontend:**
 ```bash
 cd frontend
+npm install
 npm start
 # Or for production build:
 npm run build
